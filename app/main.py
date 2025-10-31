@@ -14,4 +14,4 @@ async def home(request: Request):
 
 @app.get("/api/hello")
 async def hello():
-    return {"message": "Hello from FastAPI 👋"}
+    return {"message": "Hier entsteht etwas cooles :)"}
