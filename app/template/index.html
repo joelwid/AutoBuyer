@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FastAPI + Caddy Demo</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>FastAPI + Docker + HTTPS</h1>
+    <p id="msg">Loading...</p>
+  </main>
+
+  <script>
+    fetch("/api/hello")
+      .then(r => r.json())
+      .then(data => document.getElementById("msg").textContent = data.message)
+      .catch(() => document.getElementById("msg").textContent = "Failed to load.");
+  </script>
+</body>
+</html>
