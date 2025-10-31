@@ -19,5 +19,7 @@ echo "==> Starting updated containers…"
 docker compose up -d
 
 echo "==> Checking app health…"
+
+sleep 2
 # adjust the URL/port if you front with Caddy on 80/443
 curl -fsS http://127.0.0.1:8000/ >/dev/null && echo "OK"
