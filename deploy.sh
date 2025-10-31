@@ -18,7 +18,7 @@ docker compose down
 echo "==> Starting updated containers…"
 docker compose up -d
 
-sleep 1
+sleep 2
 
 echo "==> Checking app health…"
 
