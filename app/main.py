@@ -19,6 +19,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
 
+from app.backend.recognize_products import recognize_products
+
 # Load environment variables
 load_dotenv()
 
@@ -773,11 +775,15 @@ async def get_products(request: Request):
 def test_selenium():
     driver = make_driver()
     try:
-        url = "https://galaxus.ch"
-        driver.get(url)
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
-        title = driver.title
-        return {"message": "Success!", "title": title}
+        url = "https://www.galaxus.ch/de/s1/product/hp-omen-x-25f-1920-x-1080-pixel-2450-monitor-12201676"
+        #driver.get(url)
+        #WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
+        #title = driver.title
+        price = recognize_products(driver, url)
+        if price:
+            return {"message": "Success!", "title": price}
+        else:
+            return {"message": "Fail!", "title": 'None'}
     finally:
         driver.quit()
 
