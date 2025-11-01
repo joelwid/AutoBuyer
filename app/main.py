@@ -1375,7 +1375,9 @@ async def send_subscription_email_route(request: Request):
     
     try:
         # Get the path to email_job.py
-        email_job_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "email_job.py")
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(current_dir)
+        email_job_path = os.path.join(parent_dir, "email_job.py")
         
         # Run the email_job.py script
         result = subprocess.run(
