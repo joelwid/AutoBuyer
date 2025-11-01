@@ -975,26 +975,12 @@ async def create_subscription_route(
     request: Request, 
     product_id: int = Form(...), 
     start_date: str = Form(...),
-    frequency_type: str = Form(...),
-    frequency_preset: Optional[str] = Form(None),
-    frequency_value: Optional[int] = Form(None),
-    frequency_unit: Optional[str] = Form(None),
-    specific_day_type: Optional[str] = Form(None),
-    weekday: Optional[int] = Form(None),
-    monthday: Optional[int] = Form(None),
+    frequency: str = Form(...),
     activate: Optional[str] = Form(None)
 ):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=303)
-    
-    # Build frequency string
-    if frequency_type == "preset":
-        frequency = frequency_preset
-    elif frequency_type == "custom":
-        frequency = f"{frequency_value} {frequency_unit}"
-    else:
-        frequency = "custom"
     
     # Checkbox will send "on" if checked, None if unchecked
     is_active = activate == "on"
@@ -1004,13 +990,13 @@ async def create_subscription_route(
         frequency=frequency,
         is_active=is_active,
         start_date=start_date,
-        frequency_type=frequency_type,
-        frequency_value=frequency_value,
-        frequency_unit=frequency_unit,
-        specific_day_type=specific_day_type if specific_day_type else None,
-        weekday=weekday,
-        monthday=monthday,
-        frequency_preset=frequency_preset
+        frequency_type="preset",
+        frequency_value=None,
+        frequency_unit=None,
+        specific_day_type=None,
+        weekday=None,
+        monthday=None,
+        frequency_preset=frequency
     )
     return RedirectResponse(url="/", status_code=303)
 

@@ -243,18 +243,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="frequency_type">Frequenz-Typ:</label>
-                    <select name="frequency_type" id="frequency_type" onchange="updateFrequencyOptions()" required>
-                        <option value="">Bitte wählen...</option>
-                        <option value="preset">Vordefiniert</option>
-                        <option value="custom">Benutzerdefiniert</option>
-                    </select>
-                </div>
-
-                <!-- Preset Frequency -->
-                <div class="form-group" id="presetFrequencyGroup" style="display: none;">
-                    <label for="frequency_preset">Frequenz:</label>
-                    <select name="frequency_preset" id="frequency_preset">
+                    <label for="frequency">Frequenz:</label>
+                    <select name="frequency" id="frequency" required>
                         <option value="">Bitte wählen...</option>
                         <option value="täglich">Täglich</option>
                         <option value="wöchentlich">Wöchentlich</option>
@@ -264,83 +254,6 @@
                         <option value="vierteljährlich">Vierteljährlich</option>
                         <option value="halbjährlich">Halbjährlich</option>
                         <option value="jährlich">Jährlich</option>
-                    </select>
-                </div>
-
-                <!-- Custom Frequency -->
-                <div class="form-group" id="customFrequencyGroup" style="display: none;">
-                    <label>Benutzerdefinierte Frequenz:</label>
-                    <div class="custom-frequency-inputs">
-                        <input type="number" name="frequency_value" id="frequency_value" min="1" placeholder="Anzahl">
-                        <select name="frequency_unit" id="frequency_unit">
-                            <option value="tage">Tag(e)</option>
-                            <option value="wochen">Woche(n)</option>
-                            <option value="monate">Monat(e)</option>
-                            <option value="jahre">Jahr(e)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Specific Day Options -->
-                <div class="form-group" id="specificDayGroup" style="display: none;">
-                    <label for="specific_day_type">Spezifischer Tag:</label>
-                    <select name="specific_day_type" id="specific_day_type" onchange="updateSpecificDayOptions()">
-                        <option value="">Kein spezifischer Tag</option>
-                        <option value="weekday">Wochentag</option>
-                        <option value="monthday">Tag im Monat</option>
-                    </select>
-                </div>
-
-                <!-- Weekday Selection -->
-                <div class="form-group" id="weekdayGroup" style="display: none;">
-                    <label for="weekday">Wochentag:</label>
-                    <select name="weekday" id="weekday">
-                        <option value="0">Montag</option>
-                        <option value="1">Dienstag</option>
-                        <option value="2">Mittwoch</option>
-                        <option value="3">Donnerstag</option>
-                        <option value="4">Freitag</option>
-                        <option value="5">Samstag</option>
-                        <option value="6">Sonntag</option>
-                    </select>
-                </div>
-
-                <!-- Monthday Selection -->
-                <div class="form-group" id="monthdayGroup" style="display: none;">
-                    <label for="monthday">Tag im Monat:</label>
-                    <select name="monthday" id="monthday">
-                        <option value="1">1.</option>
-                        <option value="2">2.</option>
-                        <option value="3">3.</option>
-                        <option value="4">4.</option>
-                        <option value="5">5.</option>
-                        <option value="6">6.</option>
-                        <option value="7">7.</option>
-                        <option value="8">8.</option>
-                        <option value="9">9.</option>
-                        <option value="10">10.</option>
-                        <option value="11">11.</option>
-                        <option value="12">12.</option>
-                        <option value="13">13.</option>
-                        <option value="14">14.</option>
-                        <option value="15">15.</option>
-                        <option value="16">16.</option>
-                        <option value="17">17.</option>
-                        <option value="18">18.</option>
-                        <option value="19">19.</option>
-                        <option value="20">20.</option>
-                        <option value="21">21.</option>
-                        <option value="22">22.</option>
-                        <option value="23">23.</option>
-                        <option value="24">24.</option>
-                        <option value="25">25.</option>
-                        <option value="26">26.</option>
-                        <option value="27">27.</option>
-                        <option value="28">28.</option>
-                        <option value="29">29.</option>
-                        <option value="30">30.</option>
-                        <option value="31">31.</option>
-                        <option value="-1">Letzter Tag</option>
                     </select>
                 </div>
 
@@ -551,48 +464,6 @@
                 priceElement.style.display = 'block';
             } else {
                 priceElement.style.display = 'none';
-            }
-        }
-
-        function updateFrequencyOptions() {
-            const frequencyType = document.getElementById('frequency_type').value;
-            const presetGroup = document.getElementById('presetFrequencyGroup');
-            const customGroup = document.getElementById('customFrequencyGroup');
-            const specificDayGroup = document.getElementById('specificDayGroup');
-
-            if (frequencyType === 'preset') {
-                presetGroup.style.display = 'block';
-                customGroup.style.display = 'none';
-                specificDayGroup.style.display = 'none';
-                document.getElementById('frequency_preset').required = true;
-                document.getElementById('frequency_value').required = false;
-            } else if (frequencyType === 'custom') {
-                presetGroup.style.display = 'none';
-                customGroup.style.display = 'block';
-                specificDayGroup.style.display = 'block';
-                document.getElementById('frequency_preset').required = false;
-                document.getElementById('frequency_value').required = true;
-            } else {
-                presetGroup.style.display = 'none';
-                customGroup.style.display = 'none';
-                specificDayGroup.style.display = 'none';
-            }
-        }
-
-        function updateSpecificDayOptions() {
-            const specificDayType = document.getElementById('specific_day_type').value;
-            const weekdayGroup = document.getElementById('weekdayGroup');
-            const monthdayGroup = document.getElementById('monthdayGroup');
-
-            if (specificDayType === 'weekday') {
-                weekdayGroup.style.display = 'block';
-                monthdayGroup.style.display = 'none';
-            } else if (specificDayType === 'monthday') {
-                weekdayGroup.style.display = 'none';
-                monthdayGroup.style.display = 'block';
-            } else {
-                weekdayGroup.style.display = 'none';
-                monthdayGroup.style.display = 'none';
             }
         }
 
