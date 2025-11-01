@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyAboabo - Product Manager</title>
+    <title>MyAboabo - Abonnement Manager</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -17,8 +17,8 @@
             </div>
         </div>
         
-        <div class="two-column-layout">
-            <!-- Left Column -->
+        <div class="three-column-layout">
+            <!-- Left Column - Products -->
             <div class="left-column">
                 <div class="add-product-section">
                     <h2>Neues Produkt hinzufügen</h2>
@@ -34,28 +34,26 @@
                     <div class="product-list">
                         {% if all_products %}
                             {% for product in all_products %}
-                            <div class="product-card {% if product.is_active %}active-indicator{% endif %}">
+                            <div class="product-card {% if product.has_active_subscription %}active-indicator{% endif %}">
                                 <div class="product-info">
                                     <h3>
                                         {{ product.name }}
-                                        {% if product.is_active %}
-                                        <span class="active-badge">Aktiv</span>
+                                        {% if product.has_active_subscription %}
+                                        <span class="active-badge">Im Abo</span>
                                         {% endif %}
                                     </h3>
                                     <a href="{{ product.url }}" target="_blank">{{ product.url }}</a>
                                     <p class="product-date">Hinzugefügt: {{ product.added_at.strftime('%d.%m.%Y %H:%M') }}</p>
                                 </div>
                                 <div class="product-actions">
-                                    {% if product.is_active %}
-                                    <form method="post" action="/deactivate/{{ product.id }}" style="display:inline">
-                                        <button type="submit" class="btn-deactivate">Deaktivieren</button>
-                                    </form>
-                                    {% else %}
-                                    <form method="post" action="/activate/{{ product.id }}" style="display:inline">
-                                        <button type="submit" class="btn-activate">Aktivieren</button>
-                                    </form>
-                                    {% endif %}
-                                    <button onclick="deleteProduct({{ product.id }})" class="btn-delete">Löschen</button>
+                                    <button onclick="showSubscriptionModal({{ product.id }}, '{{ product.name }}')" class="btn-subscribe icon-btn" title="Abo erstellen">
+                                        <span class="icon">➕</span>
+                                        <span class="btn-text">Abo erstellen</span>
+                                    </button>
+                                    <button onclick="deleteProduct({{ product.id }})" class="btn-delete icon-btn" title="Löschen">
+                                        <span class="icon">🗑️</span>
+                                        <span class="btn-text">Löschen</span>
+                                    </button>
                                 </div>
                             </div>
                             {% endfor %}
@@ -68,27 +66,78 @@
 
             <!-- Right Column -->
             <div class="right-column">
-                <div class="products-section">
-                    <h2>Aktive Produkte ({{ active_products|length }})</h2>
-                    <div class="product-list">
-                        {% if active_products %}
-                            {% for product in active_products %}
-                            <div class="product-card active">
-                                <div class="product-info">
-                                    <h3>{{ product.name }}</h3>
-                                    <a href="{{ product.url }}" target="_blank">{{ product.url }}</a>
-                                    <p class="product-date">Hinzugefügt: {{ product.added_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                <!-- Top Right - Active Subscriptions -->
+                <div class="active-subscriptions-section">
+                    <h2>Aktive Abos ({{ active_subscriptions|length }})</h2>
+                    <div class="subscription-list">
+                        {% if active_subscriptions %}
+                            {% for sub in active_subscriptions %}
+                            <div class="subscription-card active">
+                                <div class="subscription-info">
+                                    <h3>{{ sub.product_name }}</h3>
+                                    <p class="subscription-frequency">Frequenz: {{ sub.frequency }}</p>
+                                    <a href="{{ sub.product_url }}" target="_blank">{{ sub.product_url }}</a>
+                                    <p class="subscription-date">Erstellt: {{ sub.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
                                 </div>
-                                <div class="product-actions">
-                                    <form method="post" action="/deactivate/{{ product.id }}" style="display:inline">
-                                        <button type="submit" class="btn-deactivate">Deaktivieren</button>
+                                <div class="subscription-actions">
+                                    <form method="post" action="/deactivate-subscription/{{ sub.id }}" style="display:inline">
+                                        <button type="submit" class="btn-deactivate icon-btn" title="Deaktivieren">
+                                            <span class="icon">⏸️</span>
+                                            <span class="btn-text">Deaktivieren</span>
+                                        </button>
                                     </form>
-                                    <button onclick="deleteProduct({{ product.id }})" class="btn-delete">Löschen</button>
                                 </div>
                             </div>
                             {% endfor %}
                         {% else %}
-                            <p class="empty-message">Keine aktiven Produkte</p>
+                            <p class="empty-message">Keine aktiven Abos</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Bottom Right - All Subscriptions -->
+                <div class="all-subscriptions-section">
+                    <h2>Alle Abos ({{ all_subscriptions|length }})</h2>
+                    <div class="subscription-list">
+                        {% if all_subscriptions %}
+                            {% for sub in all_subscriptions %}
+                            <div class="subscription-card {% if sub.is_active %}active{% endif %}">
+                                <div class="subscription-info">
+                                    <h3>
+                                        {{ sub.product_name }}
+                                        {% if sub.is_active %}
+                                        <span class="active-badge">Aktiv</span>
+                                        {% endif %}
+                                    </h3>
+                                    <p class="subscription-frequency">Frequenz: {{ sub.frequency }}</p>
+                                    <a href="{{ sub.product_url }}" target="_blank">{{ sub.product_url }}</a>
+                                    <p class="subscription-date">Erstellt: {{ sub.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                                </div>
+                                <div class="subscription-actions">
+                                    {% if sub.is_active %}
+                                    <form method="post" action="/deactivate-subscription/{{ sub.id }}" style="display:inline">
+                                        <button type="submit" class="btn-deactivate icon-btn" title="Deaktivieren">
+                                            <span class="icon">⏸️</span>
+                                            <span class="btn-text">Deaktivieren</span>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <form method="post" action="/activate-subscription/{{ sub.id }}" style="display:inline">
+                                        <button type="submit" class="btn-activate icon-btn" title="Aktivieren">
+                                            <span class="icon">▶️</span>
+                                            <span class="btn-text">Aktivieren</span>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    <button onclick="deleteSubscription({{ sub.id }})" class="btn-delete icon-btn" title="Löschen">
+                                        <span class="icon">🗑️</span>
+                                        <span class="btn-text">Löschen</span>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="empty-message">Keine Abos vorhanden</p>
                         {% endif %}
                     </div>
                 </div>
@@ -96,11 +145,78 @@
         </div>
     </div>
 
+    <!-- Modal for creating subscription -->
+    <div id="subscriptionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSubscriptionModal()">&times;</span>
+            <h2>Neues Abo erstellen</h2>
+            <p id="modalProductName"></p>
+            <form method="post" action="/create-subscription" id="subscriptionForm">
+                <input type="hidden" name="product_id" id="modalProductId">
+                <div class="form-group">
+                    <label for="frequency">Frequenz:</label>
+                    <select name="frequency" id="frequency" required>
+                        <option value="">Bitte wählen...</option>
+                        <option value="täglich">Täglich</option>
+                        <option value="wöchentlich">Wöchentlich</option>
+                        <option value="alle 2 Wochen">Alle 2 Wochen</option>
+                        <option value="monatlich">Monatlich</option>
+                        <option value="alle 2 Monate">Alle 2 Monate</option>
+                        <option value="vierteljährlich">Vierteljährlich</option>
+                        <option value="halbjährlich">Halbjährlich</option>
+                        <option value="jährlich">Jährlich</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-subscribe">Abo erstellen</button>
+            </form>
+        </div>
+    </div>
+
     <script>
-        async function deleteProduct(id) {
+        function deleteProduct(id) {
             if (confirm('Möchten Sie dieses Produkt wirklich löschen?')) {
-                await fetch(`/delete/${id}`, { method: 'DELETE' });
-                location.reload();
+                fetch(`/delete/${id}`, {
+                    method: 'DELETE',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    }
+                });
+            }
+        }
+
+        function deleteSubscription(id) {
+            if (confirm('Möchten Sie dieses Abo wirklich löschen?')) {
+                fetch(`/delete-subscription/${id}`, {
+                    method: 'DELETE',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    }
+                });
+            }
+        }
+
+        function showSubscriptionModal(productId, productName) {
+            document.getElementById('subscriptionModal').style.display = 'block';
+            document.getElementById('modalProductId').value = productId;
+            document.getElementById('modalProductName').textContent = 'Produkt: ' + productName;
+        }
+
+        function closeSubscriptionModal() {
+            document.getElementById('subscriptionModal').style.display = 'none';
+            document.getElementById('subscriptionForm').reset();
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('subscriptionModal');
+            if (event.target == modal) {
+                closeSubscriptionModal();
             }
         }
     </script>
