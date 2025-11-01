@@ -884,10 +884,9 @@ scheduler = BackgroundScheduler()
 def run_email_job():
     """Function to run the email_job.py script"""
     try:
-        # Get the path to email_job.py
+        # Get the path to email_job.py (now in app folder)
         app_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(app_dir)
-        email_job_path = os.path.join(project_root, "email_job.py")
+        email_job_path = os.path.join(app_dir, "email_job.py")
         
         print(f"Running email job at {datetime.now()}")
         
@@ -897,7 +896,7 @@ def run_email_job():
             capture_output=True,
             text=True,
             timeout=300,  # 5 minute timeout
-            cwd=project_root
+            cwd=app_dir  # Run from app directory
         )
         
         if result.returncode == 0:
@@ -1421,17 +1420,12 @@ async def send_subscription_email_route(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
-        # Get the path to email_job.py
-        # __file__ is the path to main.py in the app directory
-        current_file = os.path.abspath(__file__)  # C:\...\AutoBuyer\app\main.py
-        app_dir = os.path.dirname(current_file)    # C:\...\AutoBuyer\app
-        project_root = os.path.dirname(app_dir)     # C:\...\AutoBuyer
-        email_job_path = os.path.join(project_root, "email_job.py")
+        # Get the path to email_job.py (now in app folder)
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        email_job_path = os.path.join(app_dir, "email_job.py")
         
         # Debug logging
-        print(f"Current file: {current_file}")
         print(f"App dir: {app_dir}")
-        print(f"Project root: {project_root}")
         print(f"Email job path: {email_job_path}")
         print(f"File exists: {os.path.exists(email_job_path)}")
         
@@ -1450,7 +1444,7 @@ async def send_subscription_email_route(request: Request):
             capture_output=True,
             text=True,
             timeout=60,  # 60 second timeout
-            cwd=project_root  # Set working directory to project root
+            cwd=app_dir  # Set working directory to app folder
         )
         
         if result.returncode == 0:
