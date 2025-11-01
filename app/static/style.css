@@ -451,6 +451,24 @@ h1 {
     justify-content: center;
 }
 
+.icon-btn .icon-svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+
+.btn-activate .icon-svg {
+    fill: green;
+}
+
+.btn-deactivate .icon-svg {
+    fill: yellow;
+}
+
+.btn-delete .icon-svg {
+    fill: red;
+}
+
 .icon-btn .btn-text {
     display: none;
 }
@@ -571,6 +589,24 @@ h1 {
     background: transparent;
 }
 
+.btn-create-subscription {
+    width: 100%;
+    padding: 12px 30px;
+    background: #8C1736;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.btn-create-subscription:hover {
+    background: #6B1129;
+    transform: scale(1.02);
+}
+
 .active-subscriptions-section,
 .all-subscriptions-section {
     background: white;
@@ -610,6 +646,53 @@ h1 {
 .modal-content h2 {
     margin-bottom: 20px;
     color: #333;
+}
+
+.modal-product-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 2px solid #eee;
+}
+
+.modal-product-image {
+    flex-shrink: 0;
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ddd;
+}
+
+.modal-product-image img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.modal-product-details {
+    flex: 1;
+}
+
+.modal-product-details h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 18px;
+}
+
+.modal-product-price {
+    font-size: 18px;
+    font-weight: 600;
+    color: #8C1736;
+    margin: 0;
 }
 
 .modal-content p {

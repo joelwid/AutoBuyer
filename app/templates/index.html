@@ -75,12 +75,12 @@
                                     <p class="product-date">Hinzugefügt: {{ product.added_at.strftime('%d.%m.%Y %H:%M') }}</p>
                                 </div>
                                 <div class="product-actions">
-                                    <button onclick="showSubscriptionModal({{ product.id }}, '{{ product.name }}')" class="btn-subscribe icon-btn" title="Abo erstellen">
+                                    <button onclick="showSubscriptionModal({{ product.id }}, '{{ product.name }}', '{{ product.image_url or '' }}', '{{ product.price or '' }}')" class="btn-subscribe icon-btn" title="Abo erstellen">
                                         <span class="icon">➕</span>
                                         <span class="btn-text">Abo erstellen</span>
                                     </button>
                                     <button onclick="deleteProduct({{ product.id }})" class="btn-delete icon-btn" title="Löschen">
-                                        <span class="icon">❌</span>
+                                        <img src="/static/cross-svgrepo-com.svg" alt="Löschen" class="icon-svg">
                                         <span class="btn-text">Löschen</span>
                                     </button>
                                 </div>
@@ -118,7 +118,7 @@
                                 <div class="subscription-actions">
                                     <form method="post" action="/deactivate-subscription/{{ sub.id }}" style="display:inline">
                                         <button type="submit" class="btn-deactivate icon-btn" title="Deaktivieren">
-                                            <span class="icon">⏸</span>
+                                            <img src="/static/pause-svgrepo-com.svg" alt="Deaktivieren" class="icon-svg">
                                             <span class="btn-text">Deaktivieren</span>
                                         </button>
                                     </form>
@@ -160,20 +160,20 @@
                                     {% if sub.is_active %}
                                     <form method="post" action="/deactivate-subscription/{{ sub.id }}" style="display:inline">
                                         <button type="submit" class="btn-deactivate icon-btn" title="Deaktivieren">
-                                            <span class="icon">⏸</span>
+                                            <img src="/static/pause-svgrepo-com.svg" alt="Deaktivieren" class="icon-svg">
                                             <span class="btn-text">Deaktivieren</span>
                                         </button>
                                     </form>
                                     {% else %}
                                     <form method="post" action="/activate-subscription/{{ sub.id }}" style="display:inline">
                                         <button type="submit" class="btn-activate icon-btn" title="Aktivieren">
-                                            <span class="icon">▶</span>
+                                            <img src="/static/play-svgrepo-com.svg" alt="Aktivieren" class="icon-svg">
                                             <span class="btn-text">Aktivieren</span>
                                         </button>
                                     </form>
                                     {% endif %}
                                     <button onclick="deleteSubscription({{ sub.id }})" class="btn-delete icon-btn" title="Löschen">
-                                        <span class="icon">❌</span>
+                                        <img src="/static/cross-svgrepo-com.svg" alt="Löschen" class="icon-svg">
                                         <span class="btn-text">Löschen</span>
                                     </button>
                                 </div>
@@ -193,7 +193,17 @@
         <div class="modal-content">
             <span class="close" onclick="closeSubscriptionModal()">&times;</span>
             <h2>Neues Abo erstellen</h2>
-            <p id="modalProductName"></p>
+            
+            <div class="modal-product-info">
+                <div class="modal-product-image">
+                    <img id="modalProductImage" src="" alt="Product">
+                </div>
+                <div class="modal-product-details">
+                    <h3 id="modalProductName"></h3>
+                    <p class="modal-product-price" id="modalProductPrice"></p>
+                </div>
+            </div>
+            
             <form method="post" action="/create-subscription" id="subscriptionForm">
                 <input type="hidden" name="product_id" id="modalProductId">
                 <div class="form-group">
@@ -216,7 +226,7 @@
                         <span>Sofort aktivieren</span>
                     </label>
                 </div>
-                <button type="submit" class="btn-subscribe">Abo erstellen</button>
+                <button type="submit" class="btn-create-subscription">Abo erstellen</button>
             </form>
         </div>
     </div>
@@ -343,10 +353,28 @@
             }
         }
 
-        function showSubscriptionModal(productId, productName) {
+        function showSubscriptionModal(productId, productName, productImage, productPrice) {
             document.getElementById('subscriptionModal').style.display = 'block';
             document.getElementById('modalProductId').value = productId;
-            document.getElementById('modalProductName').textContent = 'Produkt: ' + productName;
+            document.getElementById('modalProductName').textContent = productName;
+            
+            // Set product image
+            const imgElement = document.getElementById('modalProductImage');
+            if (productImage && productImage !== '') {
+                imgElement.src = productImage;
+                imgElement.parentElement.style.display = 'flex';
+            } else {
+                imgElement.parentElement.style.display = 'none';
+            }
+            
+            // Set product price
+            const priceElement = document.getElementById('modalProductPrice');
+            if (productPrice && productPrice !== '') {
+                priceElement.textContent = 'CHF ' + productPrice;
+                priceElement.style.display = 'block';
+            } else {
+                priceElement.style.display = 'none';
+            }
         }
 
         function closeSubscriptionModal() {
