@@ -773,19 +773,20 @@ async def get_products(request: Request):
 
 @app.get("/test-selenium")
 def test_selenium():
-    driver = make_driver()
+    #driver = make_driver()
     try:
         url = "https://www.galaxus.ch/de/s1/product/hp-omen-x-25f-1920-x-1080-pixel-2450-monitor-12201676"
         #driver.get(url)
         #WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
         #title = driver.title
-        product_data = recognize_products(driver, url)
+        product_data = recognize_products(url)
         if product_data:
             return {"message": "Success!", "title": product_data}
         else:
             return {"message": "Fail!", "title": 'None'}
     finally:
-        driver.quit()
+        #driver.quit()
+        pass
 
 if __name__ == "__main__":
     import uvicorn

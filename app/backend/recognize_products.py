@@ -149,7 +149,7 @@ def get_product_data_from_url(url: str) -> dict:
     return {"title": title, "image_url": image_url, "price": price}
 
 
-def recognize_products(driver, url: str):
+def recognize_products(url: str):
     """
     For an URL of a galaxus product, return all relevant information to create a preview of that product.
     """
