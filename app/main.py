@@ -368,13 +368,13 @@ def delete_product_from_db(product_id: int) -> bool:
     except Exception:
         return False
 
-def create_subscription(product_id: int, frequency: str) -> int:
+def create_subscription(product_id: int, frequency: str, is_active: bool = True) -> int:
     """Create a new subscription for a product"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO subscriptions (product_id, frequency, is_active, created_at) VALUES (?, ?, ?, ?)",
-        (product_id, frequency, 0, datetime.now().isoformat())
+        (product_id, frequency, 1 if is_active else 0, datetime.now().isoformat())
     )
     subscription_id = cursor.lastrowid
     conn.commit()
@@ -697,12 +697,14 @@ async def add_product(request: Request, url: str = Form(...), name: str = Form(.
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/create-subscription")
-async def create_subscription_route(request: Request, product_id: int = Form(...), frequency: str = Form(...)):
+async def create_subscription_route(request: Request, product_id: int = Form(...), frequency: str = Form(...), activate: Optional[str] = Form(None)):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    create_subscription(product_id, frequency)
+    # Checkbox will send "on" if checked, None if unchecked
+    is_active = activate == "on"
+    create_subscription(product_id, frequency, is_active)
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/activate-subscription/{subscription_id}")
