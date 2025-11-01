@@ -247,30 +247,30 @@ h1 {
 }
 
 .btn-activate {
-    background: green;
-    color: white;
+    background: transparent;
+    color: #6E8C3A;
 }
 
 .btn-activate:hover {
-    background: darkgreen;
+    background: transparent;
 }
 
 .btn-deactivate {
-    background: orange;
-    color: white;
+    background: transparent;
+    color: #D4B44A;
 }
 
 .btn-deactivate:hover {
-    background: darkorange;
+    background: transparent;
 }
 
 .btn-delete {
-    background: red;
-    color: white;
+    background: transparent;
+    color: #B71C1C;
 }
 
 .btn-delete:hover {
-    background: darkred;
+    background: transparent;
 }
 
 /* Icon button styles */
@@ -279,18 +279,29 @@ h1 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     padding: 0;
+    background: transparent;
+    border: none;
     transition: all 0.3s ease;
+    cursor: pointer;
 }
 
 .icon-btn .icon {
-    font-size: 18px;
+    font-size: 24px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .icon-btn .btn-text {
     display: none;
+}
+
+.icon-btn:hover {
+    transform: scale(1.2);
 }
 
 @media (max-width: 1024px) {
@@ -386,8 +397,8 @@ h1 {
 }
 
 .btn-subscribe {
-    background: #8C1736;
-    color: white;
+    background: transparent;
+    color: #1976D2;
     padding: 8px 16px;
     border: none;
     border-radius: 5px;
@@ -397,7 +408,7 @@ h1 {
 }
 
 .btn-subscribe:hover {
-    background: #6B1129;
+    background: transparent;
 }
 
 .active-subscriptions-section,

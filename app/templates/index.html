@@ -51,7 +51,7 @@
                                         <span class="btn-text">Abo erstellen</span>
                                     </button>
                                     <button onclick="deleteProduct({{ product.id }})" class="btn-delete icon-btn" title="Löschen">
-                                        <span class="icon">🗑️</span>
+                                        <span class="icon">❌</span>
                                         <span class="btn-text">Löschen</span>
                                     </button>
                                 </div>
@@ -82,7 +82,7 @@
                                 <div class="subscription-actions">
                                     <form method="post" action="/deactivate-subscription/{{ sub.id }}" style="display:inline">
                                         <button type="submit" class="btn-deactivate icon-btn" title="Deaktivieren">
-                                            <span class="icon">⏸️</span>
+                                            <span class="icon">⏸</span>
                                             <span class="btn-text">Deaktivieren</span>
                                         </button>
                                     </form>
@@ -117,20 +117,20 @@
                                     {% if sub.is_active %}
                                     <form method="post" action="/deactivate-subscription/{{ sub.id }}" style="display:inline">
                                         <button type="submit" class="btn-deactivate icon-btn" title="Deaktivieren">
-                                            <span class="icon">⏸️</span>
+                                            <span class="icon">⏸</span>
                                             <span class="btn-text">Deaktivieren</span>
                                         </button>
                                     </form>
                                     {% else %}
                                     <form method="post" action="/activate-subscription/{{ sub.id }}" style="display:inline">
                                         <button type="submit" class="btn-activate icon-btn" title="Aktivieren">
-                                            <span class="icon">▶️</span>
+                                            <span class="icon">▶</span>
                                             <span class="btn-text">Aktivieren</span>
                                         </button>
                                     </form>
                                     {% endif %}
                                     <button onclick="deleteSubscription({{ sub.id }})" class="btn-delete icon-btn" title="Löschen">
-                                        <span class="icon">🗑️</span>
+                                        <span class="icon">❌</span>
                                         <span class="btn-text">Löschen</span>
                                     </button>
                                 </div>
