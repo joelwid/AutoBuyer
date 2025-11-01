@@ -10,7 +10,7 @@ PYTHON_PATH=$(which python3)       # Auto-detect Python
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Path to your Python script relative to this shell script
-RELATIVE_SCRIPT_PATH="app/email_job.py"  # <-- adjust if needed
+RELATIVE_SCRIPT_PATH="email_job.py"  # <-- adjust if needed
 
 # Compute the absolute path
 SCRIPT_PATH="$(realpath "$SCRIPT_DIR/$RELATIVE_SCRIPT_PATH")"
