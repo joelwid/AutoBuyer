@@ -7,3 +7,5 @@ aiosmtplib
 email-validator
 python-dotenv
 pytest
+bs4
+selenium==4.25.0

@@ -12,6 +12,11 @@ import os
 import random
 import aiosmtplib
 from email.message import EmailMessage
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -19,8 +24,27 @@ load_dotenv()
 
 app = FastAPI(title="MyAboabo")
 
+# Selenium stuff
+SELENIUM_URL = os.getenv("SELENIUM_URL", "http://selenium:4444")
+def make_driver():
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--window-size=1280,800")
+    prefs = {
+        "download.default_directory": "/usr/src/app/artifacts",
+        "download.prompt_for_download": False
+    }
+    options.add_experimental_option("prefs", prefs)
+    return webdriver.Remote(command_executor=SELENIUM_URL, options=options)
+
+
 # Security configuration
 SECRET_KEY = secrets.token_urlsafe(32)
+
+
+
 
 # Email configuration (configure these with your SMTP settings)
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -743,6 +767,20 @@ async def get_products(request: Request):
     
     return {"products": get_all_products()}
 
+@app.get("/test-selenium")
+def test_selenium():
+    driver = make_driver()
+    try:
+        url = "https://galaxus.ch"
+        driver.get(url)
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
+        title = driver.title
+        return {"message": "Success!", "title": title}
+    finally:
+        driver.quit()
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
+
