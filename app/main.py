@@ -14,13 +14,13 @@ import aiosmtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
 
-from app.backend.recognize_products import recognize_products
-from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+# from app.backend.recognize_products import recognize_products
+# from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
 from app.backend.emailer import send_email
 # from app.backend.recognize_products import recognize_products
 # from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
-from backend.recognize_products import recognize_products
-from backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+from app.backend.recognize_products import recognize_products
+from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
 # Load environment variables
 load_dotenv()
 
@@ -1363,6 +1363,31 @@ def send_mail(payload: MailIn, bg: BackgroundTasks):
     # send in background to keep API snappy
     bg.add_task(send_email, payload.to, payload.subject, payload.text, payload.html)
     return {"status": "queued"}
+
+@app.post("/send-subscription-email")
+async def send_subscription_email_route(request: Request):
+    """Send subscription reminder email to current user"""
+    from backend.subscription_emailer import send_subscription_reminder_email, set_db_path
+    
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user_id = get_current_user_id(request)
+    
+    # Set database path for the subscription emailer
+    set_db_path(DB_PATH)
+    
+    # Get base URL from request
+    base_url = str(request.base_url).rstrip('/')
+    
+    # Get template path
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "E-Mail-Template.html")
+    
+    # Send the email
+    result = send_subscription_reminder_email(user, user_id, base_url, template_path)
+    
+    return JSONResponse(result)
 
 @app.get("/email-preview", response_class=HTMLResponse)
 async def email_preview(request: Request):

@@ -15,15 +15,23 @@ def send_email(to: str, subject: str, text: str, html: str | None = None):
     if not all([SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS]):
         raise RuntimeError("SMTP environment variables missing")
     else:
-
-        msg = MIMEText("This is a direct test email from Python.")
-        msg["Subject"] = "Infomaniak SMTP test"
+        # Create multipart message for both text and HTML
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
         msg["From"] = SMTP_USER
         msg["To"] = to
 
+        # Add plain text part
+        part1 = MIMEText(text, "plain")
+        msg.attach(part1)
+
+        # Add HTML part if provided
+        if html:
+            part2 = MIMEText(html, "html")
+            msg.attach(part2)
+
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
-            server.set_debuglevel(1)
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
 
