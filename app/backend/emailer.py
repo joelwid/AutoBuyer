@@ -38,4 +38,4 @@ def send_email(to: str, subject: str, text: str, html: str | None = None):
 
 if __name__ == "__main__":
     load_dotenv() 
-    send_email(to="davidandrist@outlook.com", subject="test", text="this is a test")
+    send_email(to="example@outlook.com", subject="test", text="this is a test")
