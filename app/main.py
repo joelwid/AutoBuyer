@@ -1366,28 +1366,49 @@ def send_mail(payload: MailIn, bg: BackgroundTasks):
 
 @app.post("/send-subscription-email")
 async def send_subscription_email_route(request: Request):
-    """Send subscription reminder email to current user"""
-    from app.backend.subscription_emailer import send_subscription_reminder_email, set_db_path
+    """Run the email_job.py script to send emails to users with subscriptions due tomorrow"""
+    import subprocess
     
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    user_id = get_current_user_id(request)
-    
-    # Set database path for the subscription emailer
-    set_db_path(DB_PATH)
-    
-    # Get base URL from request
-    base_url = str(request.base_url).rstrip('/')
-    
-    # Get template path
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "E-Mail-Template.html")
-    
-    # Send the email
-    result = send_subscription_reminder_email(user, user_id, base_url, template_path)
-    
-    return JSONResponse(result)
+    try:
+        # Get the path to email_job.py
+        email_job_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "email_job.py")
+        
+        # Run the email_job.py script
+        result = subprocess.run(
+            ["python", email_job_path],
+            capture_output=True,
+            text=True,
+            timeout=60  # 60 second timeout
+        )
+        
+        if result.returncode == 0:
+            # Parse output to get summary
+            output = result.stdout
+            return JSONResponse({
+                "success": True,
+                "message": "E-Mails erfolgreich versendet",
+                "output": output
+            })
+        else:
+            return JSONResponse({
+                "success": False,
+                "message": f"Fehler beim Versenden: {result.stderr}",
+                "output": result.stdout
+            })
+    except subprocess.TimeoutExpired:
+        return JSONResponse({
+            "success": False,
+            "message": "Zeitüberschreitung beim Versenden der E-Mails"
+        })
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "message": f"Fehler: {str(e)}"
+        })
 
 @app.get("/email-preview", response_class=HTMLResponse)
 async def email_preview(request: Request):

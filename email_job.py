@@ -14,7 +14,7 @@ from pathlib import Path
 app_dir = Path(__file__).parent / "app"
 sys.path.insert(0, str(app_dir))
 
-from backend.subscription_emailer import (
+from app.backend.subscription_emailer import (
     set_db_path,
     send_subscription_reminder_email
 )
