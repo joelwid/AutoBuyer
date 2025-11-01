@@ -697,13 +697,11 @@ async def home(request: Request):
     
     all_products = get_all_products()
     all_subscriptions = get_all_subscriptions()
-    active_subscriptions = get_active_subscriptions()
     
     return templates.TemplateResponse("index.html", {
         "request": request,
         "all_products": all_products,
         "all_subscriptions": all_subscriptions,
-        "active_subscriptions": active_subscriptions,
         "username": user
     })
 

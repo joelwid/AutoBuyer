@@ -284,6 +284,41 @@ h1 {
     color: #333;
 }
 
+.filter-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.filter-controls input[type="text"] {
+    flex: 1;
+    padding: 10px 15px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.filter-controls input[type="text"]:focus {
+    outline: none;
+    border-color: #8C1736;
+}
+
+.filter-controls select {
+    padding: 10px 15px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.filter-controls select:focus {
+    outline: none;
+    border-color: #8C1736;
+}
+
 .product-list {
     display: flex;
     flex-direction: column;

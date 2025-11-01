@@ -52,11 +52,22 @@
                 </div>
 
                 <div class="products-section">
-                    <h2>Alle Produkte ({{ all_products|length }})</h2>
-                    <div class="product-list">
+                    <h2>Alle Produkte (<span id="productCount">{{ all_products|length }}</span>)</h2>
+                    <div class="filter-controls">
+                        <input type="text" id="productSearch" placeholder="Produkte durchsuchen..." onkeyup="filterProducts()">
+                        <select id="productFilter" onchange="filterProducts()">
+                            <option value="all">Alle Produkte</option>
+                            <option value="with-subscription">Mit Abo</option>
+                            <option value="without-subscription">Ohne Abo</option>
+                        </select>
+                    </div>
+                    <div class="product-list" id="productList">
                         {% if all_products %}
                             {% for product in all_products %}
-                            <div class="product-card {% if product.has_active_subscription %}active-indicator{% endif %}">
+                            <div class="product-card {% if product.has_active_subscription %}active-indicator{% endif %}" 
+                                 data-product-name="{{ product.name|lower }}" 
+                                 data-has-subscription="{{ 'true' if product.has_active_subscription else 'false' }}"
+                                 data-price="{{ product.price or '' }}">
                                 {% if product.image_url %}
                                 <div class="product-image">
                                     <img src="{{ product.image_url }}" alt="{{ product.name }}">
@@ -95,49 +106,24 @@
 
             <!-- Right Column -->
             <div class="right-column">
-                <!-- Top Right - Active Subscriptions -->
-                <div class="active-subscriptions-section">
-                    <h2>Aktive Abos ({{ active_subscriptions|length }})</h2>
-                    <div class="subscription-list">
-                        {% if active_subscriptions %}
-                            {% for sub in active_subscriptions %}
-                            <div class="subscription-card active">
-                                {% if sub.product_image %}
-                                <div class="product-image">
-                                    <img src="{{ sub.product_image }}" alt="{{ sub.product_name }}">
-                                </div>
-                                {% endif %}
-                                <div class="subscription-info">
-                                    <h3>{{ sub.product_name }}</h3>
-                                    {% if sub.product_price %}
-                                    <p class="product-price">CHF {{ sub.product_price }}</p>
-                                    {% endif %}
-                                    <p class="subscription-frequency">Frequenz: {{ sub.frequency }}</p>
-                                    <p class="subscription-date">Erstellt: {{ sub.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
-                                </div>
-                                <div class="subscription-actions">
-                                    <form method="post" action="/deactivate-subscription/{{ sub.id }}" style="display:inline">
-                                        <button type="submit" class="btn-deactivate icon-btn" title="Deaktivieren">
-                                            <img src="/static/pause-svgrepo-com.svg" alt="Deaktivieren" class="icon-svg">
-                                            <span class="btn-text">Deaktivieren</span>
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <p class="empty-message">Keine aktiven Abos</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Bottom Right - All Subscriptions -->
+                <!-- All Subscriptions -->
                 <div class="all-subscriptions-section">
-                    <h2>Alle Abos ({{ all_subscriptions|length }})</h2>
-                    <div class="subscription-list">
+                    <h2>Alle Abos (<span id="subscriptionCount">{{ all_subscriptions|length }}</span>)</h2>
+                    <div class="filter-controls">
+                        <input type="text" id="subscriptionSearch" placeholder="Abos durchsuchen..." onkeyup="filterSubscriptions()">
+                        <select id="subscriptionFilter" onchange="filterSubscriptions()">
+                            <option value="all">Alle Abos</option>
+                            <option value="active">Nur Aktive</option>
+                            <option value="inactive">Nur Inaktive</option>
+                        </select>
+                    </div>
+                    <div class="subscription-list" id="subscriptionList">
                         {% if all_subscriptions %}
                             {% for sub in all_subscriptions %}
-                            <div class="subscription-card {% if sub.is_active %}active{% endif %}">
+                            <div class="subscription-card {% if sub.is_active %}active{% endif %}" 
+                                 data-subscription-name="{{ sub.product_name|lower }}" 
+                                 data-is-active="{{ 'true' if sub.is_active else 'false' }}"
+                                 data-frequency="{{ sub.frequency }}">
                                 {% if sub.product_image %}
                                 <div class="product-image">
                                     <img src="{{ sub.product_image }}" alt="{{ sub.product_name }}">
@@ -380,6 +366,76 @@
         function closeSubscriptionModal() {
             document.getElementById('subscriptionModal').style.display = 'none';
             document.getElementById('subscriptionForm').reset();
+        }
+
+        // Filter products
+        function filterProducts() {
+            const searchValue = document.getElementById('productSearch').value.toLowerCase();
+            const filterValue = document.getElementById('productFilter').value;
+            const products = document.querySelectorAll('.product-card');
+            let visibleCount = 0;
+
+            products.forEach(product => {
+                const productName = product.getAttribute('data-product-name');
+                const hasSubscription = product.getAttribute('data-has-subscription') === 'true';
+                
+                // Check search match
+                const matchesSearch = productName.includes(searchValue);
+                
+                // Check filter match
+                let matchesFilter = true;
+                if (filterValue === 'with-subscription') {
+                    matchesFilter = hasSubscription;
+                } else if (filterValue === 'without-subscription') {
+                    matchesFilter = !hasSubscription;
+                }
+                
+                // Show or hide based on both conditions
+                if (matchesSearch && matchesFilter) {
+                    product.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    product.style.display = 'none';
+                }
+            });
+
+            // Update count
+            document.getElementById('productCount').textContent = visibleCount;
+        }
+
+        // Filter subscriptions
+        function filterSubscriptions() {
+            const searchValue = document.getElementById('subscriptionSearch').value.toLowerCase();
+            const filterValue = document.getElementById('subscriptionFilter').value;
+            const subscriptions = document.querySelectorAll('.subscription-card');
+            let visibleCount = 0;
+
+            subscriptions.forEach(subscription => {
+                const subscriptionName = subscription.getAttribute('data-subscription-name');
+                const isActive = subscription.getAttribute('data-is-active') === 'true';
+                
+                // Check search match
+                const matchesSearch = subscriptionName.includes(searchValue);
+                
+                // Check filter match
+                let matchesFilter = true;
+                if (filterValue === 'active') {
+                    matchesFilter = isActive;
+                } else if (filterValue === 'inactive') {
+                    matchesFilter = !isActive;
+                }
+                
+                // Show or hide based on both conditions
+                if (matchesSearch && matchesFilter) {
+                    subscription.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    subscription.style.display = 'none';
+                }
+            });
+
+            // Update count
+            document.getElementById('subscriptionCount').textContent = visibleCount;
         }
 
         // Close modal when clicking outside
