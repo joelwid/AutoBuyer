@@ -30,15 +30,8 @@ app = FastAPI(title="MyAboabo")
 SELENIUM_URL = os.getenv("SELENIUM_URL", "http://selenium:4444")
 def make_driver():
     options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument('--icognito')
     options.add_argument("--window-size=1280,800")
-    prefs = {
-        "download.default_directory": "/usr/src/app/artifacts",
-        "download.prompt_for_download": False
-    }
-    options.add_experimental_option("prefs", prefs)
     return webdriver.Remote(command_executor=SELENIUM_URL, options=options)
 
 
@@ -1095,20 +1088,19 @@ async def get_products(request: Request):
 
 @app.get("/test-selenium")
 def test_selenium():
-    #driver = make_driver()
+    driver = make_driver()
     try:
         url = "https://www.galaxus.ch/de/s1/product/hp-omen-x-25f-1920-x-1080-pixel-2450-monitor-12201676"
-        #driver.get(url)
-        #WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
-        #title = driver.title
-        product_data = recognize_products(url)
-        if product_data:
-            return {"message": "Success!", "title": product_data}
-        else:
-            return {"message": "Fail!", "title": 'None'}
+        driver.get(url)
+        wait = WebDriverWait(driver, 10)
+        login_button = wait.until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-testid="header-login-button"]')))
+        print("Sucessfully clicked!")
+    except:
+        print("Failed")
+        
     finally:
-        #driver.quit()
-        pass
+        driver.quit()
 
 if __name__ == "__main__":
     import uvicorn
