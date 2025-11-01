@@ -457,6 +457,15 @@ h1 {
     background: transparent;
 }
 
+.btn-edit {
+    background: transparent;
+    color: #2196F3;
+}
+
+.btn-edit:hover {
+    background: transparent;
+}
+
 .btn-delete {
     background: transparent;
     color: #B71C1C;
@@ -501,6 +510,10 @@ h1 {
 
 .btn-deactivate .icon-svg {
     fill: yellow;
+}
+
+.btn-edit .icon-svg {
+    fill: #2196F3;
 }
 
 .btn-delete .icon-svg {

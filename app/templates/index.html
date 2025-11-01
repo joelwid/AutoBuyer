@@ -187,6 +187,12 @@
                                         <span class="btn-text">Warenkorb</span>
                                     </button>
                                     -->
+                                    <button onclick="editSubscription({{ sub.id }})" class="btn-edit icon-btn" title="Bearbeiten">
+                                        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13M18.5 2.5C18.8978 2.1022 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.1022 21.5 2.5C21.8978 2.8978 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.1022 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <span class="btn-text">Bearbeiten</span>
+                                    </button>
                                     {% if sub.is_active %}
                                     <form method="post" action="/deactivate-subscription/{{ sub.id }}" style="display:inline">
                                         <button type="submit" class="btn-deactivate icon-btn" title="Deaktivieren">
@@ -264,6 +270,56 @@
                     </label>
                 </div>
                 <button type="submit" class="btn-create-subscription">Abo erstellen</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for editing subscription -->
+    <div id="editSubscriptionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditSubscriptionModal()">&times;</span>
+            <h2>Abo bearbeiten</h2>
+            
+            <div class="modal-product-info">
+                <div class="modal-product-image">
+                    <img id="editModalProductImage" src="" alt="Product">
+                </div>
+                <div class="modal-product-details">
+                    <h3 id="editModalProductName"></h3>
+                    <p class="modal-product-price" id="editModalProductPrice"></p>
+                </div>
+            </div>
+            
+            <form method="post" action="" id="editSubscriptionForm">
+                <input type="hidden" name="subscription_id" id="editSubscriptionId">
+                
+                <div class="form-group">
+                    <label for="edit_start_date">Startdatum:</label>
+                    <input type="date" name="start_date" id="edit_start_date" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_frequency">Frequenz:</label>
+                    <select name="frequency" id="edit_frequency" required>
+                        <option value="">Bitte wählen...</option>
+                        <option value="täglich">Täglich</option>
+                        <option value="wöchentlich">Wöchentlich</option>
+                        <option value="alle 2 Wochen">Alle 2 Wochen</option>
+                        <option value="monatlich">Monatlich</option>
+                        <option value="alle 2 Monate">Alle 2 Monate</option>
+                        <option value="vierteljährlich">Vierteljährlich</option>
+                        <option value="halbjährlich">Halbjährlich</option>
+                        <option value="jährlich">Jährlich</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="activate" id="edit_activate">
+                        <span>Abo aktivieren</span>
+                    </label>
+                </div>
+                <button type="submit" class="btn-create-subscription">Abo aktualisieren</button>
             </form>
         </div>
     </div>
@@ -470,6 +526,59 @@
         function closeSubscriptionModal() {
             document.getElementById('subscriptionModal').style.display = 'none';
             document.getElementById('subscriptionForm').reset();
+        }
+
+        async function editSubscription(subscriptionId) {
+            try {
+                // Fetch subscription data
+                const response = await fetch(`/get-subscription/${subscriptionId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Fehler beim Laden der Abo-Daten');
+                }
+                
+                const data = await response.json();
+                
+                // Populate the edit modal with subscription data
+                document.getElementById('editSubscriptionId').value = data.id;
+                document.getElementById('editModalProductName').textContent = data.product_name;
+                document.getElementById('edit_start_date').value = data.start_date;
+                document.getElementById('edit_frequency').value = data.frequency;
+                document.getElementById('edit_activate').checked = data.is_active;
+                
+                // Set product image
+                const imgElement = document.getElementById('editModalProductImage');
+                if (data.product_image && data.product_image !== '') {
+                    imgElement.src = data.product_image;
+                    imgElement.parentElement.style.display = 'flex';
+                } else {
+                    imgElement.parentElement.style.display = 'none';
+                }
+                
+                // Set product price
+                const priceElement = document.getElementById('editModalProductPrice');
+                if (data.product_price && data.product_price !== '') {
+                    priceElement.textContent = 'CHF ' + data.product_price;
+                    priceElement.style.display = 'block';
+                } else {
+                    priceElement.style.display = 'none';
+                }
+                
+                // Set form action
+                document.getElementById('editSubscriptionForm').action = `/update-subscription/${subscriptionId}`;
+                
+                // Show the modal
+                document.getElementById('editSubscriptionModal').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Fehler beim Laden der Abo-Daten. Bitte versuchen Sie es erneut.');
+            }
+        }
+
+        function closeEditSubscriptionModal() {
+            document.getElementById('editSubscriptionModal').style.display = 'none';
+            document.getElementById('editSubscriptionForm').reset();
         }
 
         // Filter products

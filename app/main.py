@@ -761,6 +761,100 @@ def delete_subscription_from_db(subscription_id: int, user_id: int = None) -> bo
     except Exception:
         return False
 
+def get_subscription_by_id(subscription_id: int, user_id: int = None) -> Optional[dict]:
+    """Get a subscription by ID"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    if user_id is not None:
+        cursor.execute("""
+            SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, 
+                   s.is_active, s.created_at, s.next_buy_date, s.start_date, s.frequency_type,
+                   s.frequency_value, s.frequency_unit, s.specific_day_type, s.weekday, s.monthday
+            FROM subscriptions s
+            JOIN products p ON s.product_id = p.id
+            WHERE s.id = ? AND s.user_id = ?
+        """, (subscription_id, user_id))
+    else:
+        cursor.execute("""
+            SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, 
+                   s.is_active, s.created_at, s.next_buy_date, s.start_date, s.frequency_type,
+                   s.frequency_value, s.frequency_unit, s.specific_day_type, s.weekday, s.monthday
+            FROM subscriptions s
+            JOIN products p ON s.product_id = p.id
+            WHERE s.id = ?
+        """, (subscription_id,))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        next_buy_date_formatted = None
+        if row[9]:
+            try:
+                date_obj = datetime.strptime(row[9], "%Y-%m-%d")
+                next_buy_date_formatted = date_obj.strftime("%d.%m.%Y")
+            except:
+                next_buy_date_formatted = row[9]
+        
+        # Format created_at as string for JSON serialization
+        created_at_str = row[8] if row[8] else datetime.now().isoformat()
+        
+        return {
+            "id": row[0],
+            "product_id": row[1],
+            "product_name": row[2],
+            "product_url": row[3],
+            "product_image": row[4],
+            "product_price": row[5],
+            "frequency": row[6],
+            "is_active": bool(row[7]),
+            "created_at": created_at_str,
+            "next_buy_date": next_buy_date_formatted,
+            "start_date": row[10],
+            "frequency_type": row[11],
+            "frequency_value": row[12],
+            "frequency_unit": row[13],
+            "specific_day_type": row[14],
+            "weekday": row[15],
+            "monthday": row[16]
+        }
+    return None
+
+def update_subscription(subscription_id: int, frequency: str, start_date: str = None,
+                       is_active: bool = True, user_id: int = None) -> bool:
+    """Update an existing subscription"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Verify ownership if user_id is provided
+        if user_id is not None:
+            cursor.execute("SELECT user_id FROM subscriptions WHERE id = ?", (subscription_id,))
+            row = cursor.fetchone()
+            if not row or row[0] != user_id:
+                conn.close()
+                return False
+        
+        # Calculate next buy date
+        next_buy_date = calculate_next_buy_date(
+            start_date, "preset", None, None, None, None, None, frequency
+        )
+        
+        cursor.execute("""
+            UPDATE subscriptions 
+            SET frequency = ?, start_date = ?, is_active = ?, next_buy_date = ?,
+                frequency_type = ?
+            WHERE id = ?
+        """, (frequency, start_date, 1 if is_active else 0, next_buy_date, "preset", subscription_id))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error updating subscription: {e}")
+        return False
+
 def update_product_status(product_id: int, is_active: bool) -> bool:
     """Update product active status - DEPRECATED, use subscriptions instead"""
     try:
@@ -1112,6 +1206,42 @@ async def delete_subscription(request: Request, subscription_id: int):
     if not success:
         raise HTTPException(status_code=403, detail="Not authorized to delete this subscription")
     return {"success": True}
+
+@app.get("/get-subscription/{subscription_id}")
+async def get_subscription(request: Request, subscription_id: int):
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user_id = get_current_user_id(request)
+    subscription = get_subscription_by_id(subscription_id, user_id)
+    
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    return JSONResponse(subscription)
+
+@app.post("/update-subscription/{subscription_id}")
+async def update_subscription_route(
+    request: Request,
+    subscription_id: int,
+    frequency: str = Form(...),
+    start_date: str = Form(...),
+    activate: Optional[str] = Form(None)
+):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user_id = get_current_user_id(request)
+    is_active = activate == "on"
+    
+    success = update_subscription(subscription_id, frequency, start_date, is_active, user_id)
+    
+    if not success:
+        raise HTTPException(status_code=403, detail="Not authorized to update this subscription")
+    
+    return RedirectResponse(url="/", status_code=303)
 
 @app.post("/add-to-cart/{subscription_id}")
 async def add_subscription_to_cart(request: Request, subscription_id: int):
