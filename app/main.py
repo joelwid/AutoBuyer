@@ -14,10 +14,10 @@ import aiosmtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
 
-# from app.backend.recognize_products import recognize_products
-# from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
-from backend.recognize_products import recognize_products
-from backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+from app.backend.recognize_products import recognize_products
+from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+# from backend.recognize_products import recognize_products
+# from backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
 # Load environment variables
 load_dotenv()
 
