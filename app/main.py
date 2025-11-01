@@ -19,8 +19,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
 
-from backend.recognize_products import recognize_products
-# from app.backend.recognize_products import recognize_products
+# from backend.recognize_products import recognize_products
+from app.backend.recognize_products import recognize_products
 # Load environment variables
 load_dotenv()
 
