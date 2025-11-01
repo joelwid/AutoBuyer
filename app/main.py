@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, EmailStr
@@ -19,8 +19,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
 
-from app.backend.recognize_products import recognize_products
-
+from backend.recognize_products import recognize_products
+# from app.backend.recognize_products import recognize_products
 # Load environment variables
 load_dotenv()
 
@@ -110,11 +110,23 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             url TEXT NOT NULL,
             name TEXT NOT NULL,
+            image_url TEXT,
+            price TEXT,
             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             user_id INTEGER,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     """)
+    
+    # Check if products table needs migration for image_url and price
+    cursor.execute("PRAGMA table_info(products)")
+    product_columns = [col[1] for col in cursor.fetchall()]
+    if 'image_url' not in product_columns:
+        print("📦 Migrating database: Adding image_url column to products...")
+        cursor.execute("ALTER TABLE products ADD COLUMN image_url TEXT")
+    if 'price' not in product_columns:
+        print("📦 Migrating database: Adding price column to products...")
+        cursor.execute("ALTER TABLE products ADD COLUMN price TEXT")
     
     # Create subscriptions table
     cursor.execute("""
@@ -320,7 +332,7 @@ def get_all_products() -> List[dict]:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT p.id, p.url, p.name, p.added_at,
+        SELECT p.id, p.url, p.name, p.image_url, p.price, p.added_at,
                CASE WHEN EXISTS (
                    SELECT 1 FROM subscriptions s 
                    WHERE s.product_id = p.id AND s.is_active = 1
@@ -337,18 +349,20 @@ def get_all_products() -> List[dict]:
             "id": row[0],
             "url": row[1],
             "name": row[2],
-            "added_at": datetime.fromisoformat(row[3]) if row[3] else datetime.now(),
-            "has_active_subscription": bool(row[4])
+            "image_url": row[3],
+            "price": row[4],
+            "added_at": datetime.fromisoformat(row[5]) if row[5] else datetime.now(),
+            "has_active_subscription": bool(row[6])
         })
     return products
 
-def add_product_to_db(url: str, name: str) -> int:
+def add_product_to_db(url: str, name: str, image_url: str = None, price: str = None) -> int:
     """Add a new product to database"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO products (url, name, added_at) VALUES (?, ?, ?)",
-        (url, name, datetime.now().isoformat())
+        "INSERT INTO products (url, name, image_url, price, added_at) VALUES (?, ?, ?, ?, ?)",
+        (url, name, image_url, price, datetime.now().isoformat())
     )
     product_id = cursor.lastrowid
     conn.commit()
@@ -388,7 +402,7 @@ def get_all_subscriptions() -> List[dict]:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT s.id, s.product_id, p.name, p.url, s.frequency, s.is_active, s.created_at
+        SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.is_active, s.created_at
         FROM subscriptions s
         JOIN products p ON s.product_id = p.id
         ORDER BY s.created_at DESC
@@ -403,9 +417,11 @@ def get_all_subscriptions() -> List[dict]:
             "product_id": row[1],
             "product_name": row[2],
             "product_url": row[3],
-            "frequency": row[4],
-            "is_active": bool(row[5]),
-            "created_at": datetime.fromisoformat(row[6]) if row[6] else datetime.now()
+            "product_image": row[4],
+            "product_price": row[5],
+            "frequency": row[6],
+            "is_active": bool(row[7]),
+            "created_at": datetime.fromisoformat(row[8]) if row[8] else datetime.now()
         })
     return subscriptions
 
@@ -414,7 +430,7 @@ def get_active_subscriptions() -> List[dict]:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT s.id, s.product_id, p.name, p.url, s.frequency, s.created_at
+        SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.created_at
         FROM subscriptions s
         JOIN products p ON s.product_id = p.id
         WHERE s.is_active = 1
@@ -430,8 +446,10 @@ def get_active_subscriptions() -> List[dict]:
             "product_id": row[1],
             "product_name": row[2],
             "product_url": row[3],
-            "frequency": row[4],
-            "created_at": datetime.fromisoformat(row[5]) if row[5] else datetime.now()
+            "product_image": row[4],
+            "product_price": row[5],
+            "frequency": row[6],
+            "created_at": datetime.fromisoformat(row[7]) if row[7] else datetime.now()
         })
     return subscriptions
 
@@ -689,13 +707,43 @@ async def home(request: Request):
         "username": user
     })
 
+@app.post("/preview-product")
+async def preview_product(request: Request):
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
+    
+    try:
+        data = await request.json()
+        url = data.get("url")
+        
+        if not url:
+            return JSONResponse({"success": False, "error": "URL is required"})
+        
+        # Scrape product data from URL
+        product_data = recognize_products(url)
+        
+        if product_data:
+            return JSONResponse({
+                "success": True,
+                "title": product_data.get("title", "Unknown Product"),
+                "image_url": product_data.get("image_url"),
+                "price": product_data.get("price")
+            })
+        else:
+            return JSONResponse({"success": False, "error": "Could not load product data"})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
 @app.post("/add-product")
-async def add_product(request: Request, url: str = Form(...), name: str = Form(...)):
+async def add_product(request: Request, url: str = Form(...), title: str = Form(...), image_url: str = Form(None), price: str = Form(None)):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    add_product_to_db(url, name)
+    # Add product with already-scraped data
+    add_product_to_db(url, title, image_url, price)
+    
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/create-subscription")

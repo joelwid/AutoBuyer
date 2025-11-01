@@ -22,11 +22,33 @@
             <div class="left-column">
                 <div class="add-product-section">
                     <h2>Neues Produkt hinzufügen</h2>
-                    <form method="post" action="/add-product">
-                        <input type="text" name="name" placeholder="Produktname" required>
-                        <input type="url" name="url" placeholder="Produkt URL" required>
-                        <button type="submit">Hinzufügen</button>
+                    <form id="previewProductForm" onsubmit="loadProductPreview(event)">
+                        <input type="url" id="productUrl" name="url" placeholder="Produkt URL (Galaxus)" required>
+                        <button type="submit">Vorschau laden</button>
                     </form>
+                    <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Produktdaten werden geladen...</p>
+                    </div>
+                    <div id="productPreview" class="product-preview" style="display: none;">
+                        <h3>Produktvorschau</h3>
+                        <div class="preview-content">
+                            <div class="preview-image">
+                                <img id="previewImg" src="" alt="Product Image">
+                            </div>
+                            <div class="preview-info">
+                                <h4 id="previewTitle"></h4>
+                                <p class="preview-price" id="previewPrice"></p>
+                                <input type="hidden" id="previewUrl" value="">
+                                <input type="hidden" id="previewImageUrl" value="">
+                                <input type="hidden" id="previewPriceValue" value="">
+                            </div>
+                        </div>
+                        <div class="preview-actions">
+                            <button onclick="confirmAddProduct()" class="btn-confirm">Produkt hinzufügen</button>
+                            <button onclick="discardPreview()" class="btn-discard">Verwerfen</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="products-section">
@@ -35,6 +57,11 @@
                         {% if all_products %}
                             {% for product in all_products %}
                             <div class="product-card {% if product.has_active_subscription %}active-indicator{% endif %}">
+                                {% if product.image_url %}
+                                <div class="product-image">
+                                    <img src="{{ product.image_url }}" alt="{{ product.name }}">
+                                </div>
+                                {% endif %}
                                 <div class="product-info">
                                     <h3>
                                         {{ product.name }}
@@ -42,7 +69,9 @@
                                         <span class="active-badge">Im Abo</span>
                                         {% endif %}
                                     </h3>
-                                    <a href="{{ product.url }}" target="_blank">{{ product.url }}</a>
+                                    {% if product.price %}
+                                    <p class="product-price">CHF {{ product.price }}</p>
+                                    {% endif %}
                                     <p class="product-date">Hinzugefügt: {{ product.added_at.strftime('%d.%m.%Y %H:%M') }}</p>
                                 </div>
                                 <div class="product-actions">
@@ -73,10 +102,17 @@
                         {% if active_subscriptions %}
                             {% for sub in active_subscriptions %}
                             <div class="subscription-card active">
+                                {% if sub.product_image %}
+                                <div class="product-image">
+                                    <img src="{{ sub.product_image }}" alt="{{ sub.product_name }}">
+                                </div>
+                                {% endif %}
                                 <div class="subscription-info">
                                     <h3>{{ sub.product_name }}</h3>
+                                    {% if sub.product_price %}
+                                    <p class="product-price">CHF {{ sub.product_price }}</p>
+                                    {% endif %}
                                     <p class="subscription-frequency">Frequenz: {{ sub.frequency }}</p>
-                                    <a href="{{ sub.product_url }}" target="_blank">{{ sub.product_url }}</a>
                                     <p class="subscription-date">Erstellt: {{ sub.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
                                 </div>
                                 <div class="subscription-actions">
@@ -102,6 +138,11 @@
                         {% if all_subscriptions %}
                             {% for sub in all_subscriptions %}
                             <div class="subscription-card {% if sub.is_active %}active{% endif %}">
+                                {% if sub.product_image %}
+                                <div class="product-image">
+                                    <img src="{{ sub.product_image }}" alt="{{ sub.product_name }}">
+                                </div>
+                                {% endif %}
                                 <div class="subscription-info">
                                     <h3>
                                         {{ sub.product_name }}
@@ -109,8 +150,10 @@
                                         <span class="active-badge">Aktiv</span>
                                         {% endif %}
                                     </h3>
+                                    {% if sub.product_price %}
+                                    <p class="product-price">CHF {{ sub.product_price }}</p>
+                                    {% endif %}
                                     <p class="subscription-frequency">Frequenz: {{ sub.frequency }}</p>
-                                    <a href="{{ sub.product_url }}" target="_blank">{{ sub.product_url }}</a>
                                     <p class="subscription-date">Erstellt: {{ sub.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
                                 </div>
                                 <div class="subscription-actions">
@@ -179,6 +222,99 @@
     </div>
 
     <script>
+        function loadProductPreview(event) {
+            event.preventDefault();
+            
+            const url = document.getElementById('productUrl').value;
+            
+            // Hide form and show loading spinner
+            document.getElementById('previewProductForm').style.display = 'none';
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('productPreview').style.display = 'none';
+            
+            // Fetch product data
+            fetch('/preview-product', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading spinner
+                document.getElementById('loadingSpinner').style.display = 'none';
+                
+                if (data.success) {
+                    // Populate preview
+                    document.getElementById('previewImg').src = data.image_url || '';
+                    document.getElementById('previewTitle').textContent = data.title || 'Unknown Product';
+                    document.getElementById('previewPrice').textContent = data.price ? `CHF ${data.price}` : 'Preis nicht verfügbar';
+                    document.getElementById('previewUrl').value = url;
+                    document.getElementById('previewImageUrl').value = data.image_url || '';
+                    document.getElementById('previewPriceValue').value = data.price || '';
+                    
+                    // Show preview
+                    document.getElementById('productPreview').style.display = 'block';
+                } else {
+                    alert('Fehler beim Laden der Produktdaten: ' + (data.error || 'Unbekannter Fehler'));
+                    document.getElementById('previewProductForm').style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Fehler beim Laden der Produktdaten');
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('previewProductForm').style.display = 'block';
+            });
+        }
+
+        function confirmAddProduct() {
+            const url = document.getElementById('previewUrl').value;
+            const title = document.getElementById('previewTitle').textContent;
+            const imageUrl = document.getElementById('previewImageUrl').value;
+            const price = document.getElementById('previewPriceValue').value;
+            
+            // Create a form and submit
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/add-product';
+            
+            const urlInput = document.createElement('input');
+            urlInput.type = 'hidden';
+            urlInput.name = 'url';
+            urlInput.value = url;
+            form.appendChild(urlInput);
+            
+            const titleInput = document.createElement('input');
+            titleInput.type = 'hidden';
+            titleInput.name = 'title';
+            titleInput.value = title;
+            form.appendChild(titleInput);
+            
+            const imageInput = document.createElement('input');
+            imageInput.type = 'hidden';
+            imageInput.name = 'image_url';
+            imageInput.value = imageUrl;
+            form.appendChild(imageInput);
+            
+            const priceInput = document.createElement('input');
+            priceInput.type = 'hidden';
+            priceInput.name = 'price';
+            priceInput.value = price;
+            form.appendChild(priceInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function discardPreview() {
+            // Reset form and hide preview
+            document.getElementById('productUrl').value = '';
+            document.getElementById('productPreview').style.display = 'none';
+            document.getElementById('previewProductForm').style.display = 'block';
+        }
+
         function deleteProduct(id) {
             if (confirm('Möchten Sie dieses Produkt wirklich löschen?')) {
                 fetch(`/delete/${id}`, {
