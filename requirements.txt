@@ -1,3 +1,8 @@
 fastapi
 uvicorn[standard]
 jinja2
+python-multipart
+pydantic
+aiosmtplib
+email-validator
+python-dotenv

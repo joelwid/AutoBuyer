@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrierung - AutoBuyer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .register-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .register-button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .register-button:hover {
+            background: #5568d3;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c00;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid #fcc;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .login-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h1>Registrierung</h1>
+        
+        {% if request.query_params.get('error') == 'user_exists' %}
+        <div class="error-message">
+            Benutzername existiert bereits
+        </div>
+        {% elif request.query_params.get('error') == 'username_short' %}
+        <div class="error-message">
+            Benutzername muss mindestens 3 Zeichen lang sein
+        </div>
+        {% elif request.query_params.get('error') == 'password_short' %}
+        <div class="error-message">
+            Passwort muss mindestens 6 Zeichen lang sein
+        </div>
+        {% elif request.query_params.get('error') == 'password_mismatch' %}
+        <div class="error-message">
+            Passwörter stimmen nicht überein
+        </div>
+        {% elif request.query_params.get('error') == 'invalid_email' %}
+        <div class="error-message">
+            Ungültige E-Mail-Adresse
+        </div>
+        {% elif request.query_params.get('error') == 'email_exists' %}
+        <div class="error-message">
+            E-Mail-Adresse wird bereits verwendet
+        </div>
+        {% endif %}
+
+        <form method="post" action="/register">
+            <div class="form-group">
+                <label for="username">Benutzername</label>
+                <input type="text" id="username" name="username" required autofocus>
+                <p class="info-text">Mindestens 3 Zeichen</p>
+            </div>
+
+            <div class="form-group">
+                <label for="email">E-Mail-Adresse</label>
+                <input type="email" id="email" name="email" required>
+                <p class="info-text">Für Zwei-Faktor-Authentifizierung</p>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Passwort</label>
+                <input type="password" id="password" name="password" required>
+                <p class="info-text">Mindestens 6 Zeichen</p>
+            </div>
+
+            <div class="form-group">
+                <label for="password_confirm">Passwort bestätigen</label>
+                <input type="password" id="password_confirm" name="password_confirm" required>
+            </div>
+
+            <button type="submit" class="register-button">Registrieren</button>
+        </form>
+
+        <div class="login-link">
+            Bereits ein Konto? <a href="/login">Hier anmelden</a>
+        </div>
+    </div>
+</body>
+</html>

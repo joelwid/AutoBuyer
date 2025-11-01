@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zwei-Faktor-Authentifizierung - AutoBuyer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .verify-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            text-align: center;
+            border: 1px solid #90caf9;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 5px;
+            font-weight: bold;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .verify-button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .verify-button:hover {
+            background: #5568d3;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c00;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid #fcc;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-container">
+        <h1>🔐 Verifizierung</h1>
+        
+        <div class="info-box">
+            Ein 6-stelliger Code wurde an Ihre E-Mail-Adresse gesendet.<br>
+            Der Code ist 10 Minuten gültig.
+        </div>
+
+        {% if request.query_params.get('error') == 'invalid_code' %}
+        <div class="error-message">
+            Ungültiger oder abgelaufener Code
+        </div>
+        {% endif %}
+
+        <form method="post" action="/verify-2fa">
+            <div class="form-group">
+                <label for="code">Verifizierungscode</label>
+                <input type="text" id="code" name="code" maxlength="6" pattern="[0-9]{6}" required autofocus placeholder="000000">
+            </div>
+
+            <button type="submit" class="verify-button">Code verifizieren</button>
+        </form>
+
+        <div class="back-link">
+            <a href="/login">Zurück zum Login</a>
+        </div>
+    </div>
+</body>
+</html>

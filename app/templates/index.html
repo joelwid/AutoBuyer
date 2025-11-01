@@ -1,22 +1,108 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FastAPI + Caddy Demo</title>
-  <link rel="stylesheet" href="/static/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoBuyer - Product Manager</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <main class="container">
-    <h1>Autobuyer Broday 01.11.2025</h1>
-    <p id="msg">Loading...</p>
-  </main>
+    <div class="container">
+        <div class="header">
+            <h1>AutoBuyer</h1>
+            <div class="user-info">
+                <span>Angemeldet als: <strong>{{ username }}</strong></span>
+                <a href="/change-password" class="settings-button">Passwort ändern</a>
+                <a href="/logout" class="logout-button">Abmelden</a>
+            </div>
+        </div>
+        
+        <div class="two-column-layout">
+            <!-- Left Column -->
+            <div class="left-column">
+                <div class="add-product-section">
+                    <h2>Neues Produkt hinzufügen</h2>
+                    <form method="post" action="/add-product">
+                        <input type="text" name="name" placeholder="Produktname" required>
+                        <input type="url" name="url" placeholder="Produkt URL" required>
+                        <button type="submit">Hinzufügen</button>
+                    </form>
+                </div>
 
-  <script>
-    fetch("/api/hello")
-      .then(r => r.json())
-      .then(data => document.getElementById("msg").textContent = data.message)
-      .catch(() => document.getElementById("msg").textContent = "Failed to load.");
-  </script>
+                <div class="products-section">
+                    <h2>Alle Produkte ({{ all_products|length }})</h2>
+                    <div class="product-list">
+                        {% if all_products %}
+                            {% for product in all_products %}
+                            <div class="product-card {% if product.is_active %}active-indicator{% endif %}">
+                                <div class="product-info">
+                                    <h3>
+                                        {{ product.name }}
+                                        {% if product.is_active %}
+                                        <span class="active-badge">Aktiv</span>
+                                        {% endif %}
+                                    </h3>
+                                    <a href="{{ product.url }}" target="_blank">{{ product.url }}</a>
+                                    <p class="product-date">Hinzugefügt: {{ product.added_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                                </div>
+                                <div class="product-actions">
+                                    {% if product.is_active %}
+                                    <form method="post" action="/deactivate/{{ product.id }}" style="display:inline">
+                                        <button type="submit" class="btn-deactivate">Deaktivieren</button>
+                                    </form>
+                                    {% else %}
+                                    <form method="post" action="/activate/{{ product.id }}" style="display:inline">
+                                        <button type="submit" class="btn-activate">Aktivieren</button>
+                                    </form>
+                                    {% endif %}
+                                    <button onclick="deleteProduct({{ product.id }})" class="btn-delete">Löschen</button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="empty-message">Keine Produkte vorhanden</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="right-column">
+                <div class="products-section">
+                    <h2>Aktive Produkte ({{ active_products|length }})</h2>
+                    <div class="product-list">
+                        {% if active_products %}
+                            {% for product in active_products %}
+                            <div class="product-card active">
+                                <div class="product-info">
+                                    <h3>{{ product.name }}</h3>
+                                    <a href="{{ product.url }}" target="_blank">{{ product.url }}</a>
+                                    <p class="product-date">Hinzugefügt: {{ product.added_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                                </div>
+                                <div class="product-actions">
+                                    <form method="post" action="/deactivate/{{ product.id }}" style="display:inline">
+                                        <button type="submit" class="btn-deactivate">Deaktivieren</button>
+                                    </form>
+                                    <button onclick="deleteProduct({{ product.id }})" class="btn-delete">Löschen</button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="empty-message">Keine aktiven Produkte</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function deleteProduct(id) {
+            if (confirm('Möchten Sie dieses Produkt wirklich löschen?')) {
+                await fetch(`/delete/${id}`, { method: 'DELETE' });
+                location.reload();
+            }
+        }
+    </script>
 </body>
 </html>
