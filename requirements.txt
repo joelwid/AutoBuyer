@@ -8,4 +8,5 @@ email-validator
 python-dotenv
 pytest
 bs4
+requests
 selenium==4.25.0
