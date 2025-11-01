@@ -6,6 +6,7 @@ pydantic
 aiosmtplib
 email-validator
 python-dotenv
+python-dateutil
 pytest
 bs4
 requests

@@ -137,10 +137,39 @@ def init_db():
             is_active BOOLEAN DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             user_id INTEGER,
+            start_date TEXT,
+            frequency_type TEXT,
+            frequency_value INTEGER,
+            frequency_unit TEXT,
+            specific_day_type TEXT,
+            weekday INTEGER,
+            monthday INTEGER,
+            next_buy_date TEXT,
             FOREIGN KEY (product_id) REFERENCES products (id),
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     """)
+    
+    # Migration: Add new columns if they don't exist
+    cursor.execute("PRAGMA table_info(subscriptions)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    if 'start_date' not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN start_date TEXT")
+    if 'frequency_type' not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN frequency_type TEXT")
+    if 'frequency_value' not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN frequency_value INTEGER")
+    if 'frequency_unit' not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN frequency_unit TEXT")
+    if 'specific_day_type' not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN specific_day_type TEXT")
+    if 'weekday' not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN weekday INTEGER")
+    if 'monthday' not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN monthday INTEGER")
+    if 'next_buy_date' not in columns:
+        cursor.execute("ALTER TABLE subscriptions ADD COLUMN next_buy_date TEXT")
     
     # Create default admin user if not exists
     cursor.execute("SELECT * FROM users WHERE username = ?", ("admin",))
@@ -155,6 +184,113 @@ def init_db():
     conn.commit()
     conn.close()
     print("✅ Database initialized successfully")
+
+def calculate_next_buy_date(start_date_str: str, frequency_type: str, frequency_value: int = None, 
+                            frequency_unit: str = None, specific_day_type: str = None, 
+                            weekday: int = None, monthday: int = None, frequency_preset: str = None) -> str:
+    """Calculate the next buy date based on start date and frequency settings"""
+    from datetime import datetime, timedelta
+    from dateutil.relativedelta import relativedelta
+    import calendar
+    
+    # Parse start date
+    if not start_date_str:
+        start_date = datetime.now()
+    else:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        except:
+            start_date = datetime.now()
+    
+    # If start date is in the future, that's the next buy date
+    if start_date.date() > datetime.now().date():
+        return start_date.strftime("%Y-%m-%d")
+    
+    current_date = datetime.now()
+    next_date = start_date
+    
+    # Determine the frequency in days/months/years
+    if frequency_type == "preset":
+        # Map preset frequencies to increments
+        preset_map = {
+            "täglich": {"days": 1},
+            "wöchentlich": {"weeks": 1},
+            "alle 2 Wochen": {"weeks": 2},
+            "monatlich": {"months": 1},
+            "alle 2 Monate": {"months": 2},
+            "vierteljährlich": {"months": 3},
+            "halbjährlich": {"months": 6},
+            "jährlich": {"years": 1}
+        }
+        increment = preset_map.get(frequency_preset, {"days": 1})
+    elif frequency_type == "custom" and frequency_value and frequency_unit:
+        # Build custom increment - support both German and English
+        unit_map = {
+            "days": "days",
+            "weeks": "weeks", 
+            "months": "months",
+            "years": "years",
+            "Tag(e)": "days",
+            "Woche(n)": "weeks",
+            "Monat(e)": "months",
+            "Jahr(e)": "years",
+            "tage": "days",
+            "wochen": "weeks",
+            "monate": "months",
+            "jahre": "years"
+        }
+        increment = {unit_map.get(frequency_unit, "days"): frequency_value}
+    else:
+        # Default to daily
+        increment = {"days": 1}
+    
+    # Calculate next occurrence after current date
+    while next_date <= current_date:
+        if "days" in increment:
+            next_date += timedelta(days=increment["days"])
+        elif "weeks" in increment:
+            next_date += timedelta(weeks=increment["weeks"])
+        elif "months" in increment:
+            next_date += relativedelta(months=increment["months"])
+        elif "years" in increment:
+            next_date += relativedelta(years=increment["years"])
+    
+    # Apply specific day constraints if set
+    if specific_day_type == "weekday" and weekday is not None:
+        # Find next occurrence of the specific weekday
+        days_ahead = (weekday - next_date.weekday()) % 7
+        if days_ahead == 0 and next_date <= current_date:
+            days_ahead = 7
+        next_date += timedelta(days=days_ahead)
+    elif specific_day_type == "monthday" and monthday is not None:
+        # Set to specific day of month
+        if monthday == -1:
+            # Last day of month
+            last_day = calendar.monthrange(next_date.year, next_date.month)[1]
+            next_date = next_date.replace(day=last_day)
+        else:
+            try:
+                next_date = next_date.replace(day=min(monthday, calendar.monthrange(next_date.year, next_date.month)[1]))
+            except:
+                pass
+        
+        # If we're past this day in the current month, move to next occurrence
+        if next_date <= current_date:
+            if "months" in increment:
+                next_date += relativedelta(months=increment["months"])
+            else:
+                next_date += relativedelta(months=1)
+            
+            if monthday == -1:
+                last_day = calendar.monthrange(next_date.year, next_date.month)[1]
+                next_date = next_date.replace(day=last_day)
+            else:
+                try:
+                    next_date = next_date.replace(day=min(monthday, calendar.monthrange(next_date.year, next_date.month)[1]))
+                except:
+                    pass
+    
+    return next_date.strftime("%Y-%m-%d")
 
 def hash_password(password: str) -> str:
     """Hash a password using SHA-256"""
@@ -384,13 +520,28 @@ def delete_product_from_db(product_id: int) -> bool:
     except Exception:
         return False
 
-def create_subscription(product_id: int, frequency: str, is_active: bool = True) -> int:
+def create_subscription(product_id: int, frequency: str, is_active: bool = True, 
+                       start_date: str = None, frequency_type: str = None,
+                       frequency_value: int = None, frequency_unit: str = None,
+                       specific_day_type: str = None, weekday: int = None, monthday: int = None,
+                       frequency_preset: str = None) -> int:
     """Create a new subscription for a product"""
+    # Calculate next buy date
+    next_buy_date = calculate_next_buy_date(
+        start_date, frequency_type, frequency_value, frequency_unit,
+        specific_day_type, weekday, monthday, frequency_preset
+    )
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO subscriptions (product_id, frequency, is_active, created_at) VALUES (?, ?, ?, ?)",
-        (product_id, frequency, 1 if is_active else 0, datetime.now().isoformat())
+        """INSERT INTO subscriptions 
+           (product_id, frequency, is_active, created_at, start_date, frequency_type, 
+            frequency_value, frequency_unit, specific_day_type, weekday, monthday, next_buy_date) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (product_id, frequency, 1 if is_active else 0, datetime.now().isoformat(),
+         start_date, frequency_type, frequency_value, frequency_unit, 
+         specific_day_type, weekday, monthday, next_buy_date)
     )
     subscription_id = cursor.lastrowid
     conn.commit()
@@ -402,7 +553,7 @@ def get_all_subscriptions() -> List[dict]:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.is_active, s.created_at
+        SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.is_active, s.created_at, s.next_buy_date
         FROM subscriptions s
         JOIN products p ON s.product_id = p.id
         ORDER BY s.created_at DESC
@@ -412,6 +563,15 @@ def get_all_subscriptions() -> List[dict]:
     
     subscriptions = []
     for row in rows:
+        # Format next_buy_date to dd.mm.yyyy
+        next_buy_date_formatted = None
+        if row[9]:
+            try:
+                date_obj = datetime.strptime(row[9], "%Y-%m-%d")
+                next_buy_date_formatted = date_obj.strftime("%d.%m.%Y")
+            except:
+                next_buy_date_formatted = row[9]
+        
         subscriptions.append({
             "id": row[0],
             "product_id": row[1],
@@ -421,7 +581,8 @@ def get_all_subscriptions() -> List[dict]:
             "product_price": row[5],
             "frequency": row[6],
             "is_active": bool(row[7]),
-            "created_at": datetime.fromisoformat(row[8]) if row[8] else datetime.now()
+            "created_at": datetime.fromisoformat(row[8]) if row[8] else datetime.now(),
+            "next_buy_date": next_buy_date_formatted
         })
     return subscriptions
 
@@ -468,6 +629,58 @@ def update_subscription_status(subscription_id: int, is_active: bool) -> bool:
     except Exception:
         return False
 
+def update_next_buy_date(subscription_id: int) -> bool:
+    """Update the next buy date for a subscription based on current date"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get subscription details
+        cursor.execute("""
+            SELECT start_date, frequency_type, frequency_value, frequency_unit, 
+                   specific_day_type, weekday, monthday, frequency
+            FROM subscriptions WHERE id = ?
+        """, (subscription_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return False
+        
+        start_date, frequency_type, frequency_value, frequency_unit, specific_day_type, weekday, monthday, frequency = row
+        
+        # Extract preset from frequency if it's a preset type
+        frequency_preset = frequency if frequency_type == "preset" else None
+        
+        # Calculate new next buy date
+        next_buy_date = calculate_next_buy_date(
+            start_date, frequency_type, frequency_value, frequency_unit,
+            specific_day_type, weekday, monthday, frequency_preset
+        )
+        
+        # Update the database
+        cursor.execute(
+            "UPDATE subscriptions SET next_buy_date = ? WHERE id = ?",
+            (next_buy_date, subscription_id)
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error updating next buy date: {e}")
+        return False
+
+def update_all_next_buy_dates():
+    """Update next buy dates for all subscriptions"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM subscriptions")
+    subscription_ids = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    
+    for sub_id in subscription_ids:
+        update_next_buy_date(sub_id)
+
 def delete_subscription_from_db(subscription_id: int) -> bool:
     """Delete a subscription from the database"""
     try:
@@ -506,6 +719,33 @@ pending_2fa = {}  # Temporary storage for pending 2FA logins
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
+
+def translate_frequency_to_german(frequency_str: str) -> str:
+    """Translate frequency string to German"""
+    if not frequency_str:
+        return frequency_str
+    
+    # Translation mappings - order matters! Check plurals first
+    translations = [
+        (' years', ' Jahre'),
+        (' year', ' Jahr'),
+        (' months', ' Monate'),
+        (' month', ' Monat'),
+        (' weeks', ' Wochen'),
+        (' week', ' Woche'),
+        (' days', ' Tage'),
+        (' day', ' Tag')
+    ]
+    
+    # Replace English terms with German
+    result = frequency_str
+    for eng, ger in translations:
+        result = result.replace(eng, ger)
+    
+    return result
+
+# Add custom filter to Jinja2
+templates.env.filters['german_frequency'] = translate_frequency_to_german
 
 class Product(BaseModel):
     id: int
@@ -695,6 +935,9 @@ async def home(request: Request):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # Update next buy dates for all subscriptions
+    update_all_next_buy_dates()
+    
     all_products = get_all_products()
     all_subscriptions = get_all_subscriptions()
     
@@ -745,14 +988,47 @@ async def add_product(request: Request, url: str = Form(...), title: str = Form(
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/create-subscription")
-async def create_subscription_route(request: Request, product_id: int = Form(...), frequency: str = Form(...), activate: Optional[str] = Form(None)):
+async def create_subscription_route(
+    request: Request, 
+    product_id: int = Form(...), 
+    start_date: str = Form(...),
+    frequency_type: str = Form(...),
+    frequency_preset: Optional[str] = Form(None),
+    frequency_value: Optional[int] = Form(None),
+    frequency_unit: Optional[str] = Form(None),
+    specific_day_type: Optional[str] = Form(None),
+    weekday: Optional[int] = Form(None),
+    monthday: Optional[int] = Form(None),
+    activate: Optional[str] = Form(None)
+):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # Build frequency string
+    if frequency_type == "preset":
+        frequency = frequency_preset
+    elif frequency_type == "custom":
+        frequency = f"{frequency_value} {frequency_unit}"
+    else:
+        frequency = "custom"
+    
     # Checkbox will send "on" if checked, None if unchecked
     is_active = activate == "on"
-    create_subscription(product_id, frequency, is_active)
+    
+    create_subscription(
+        product_id=product_id,
+        frequency=frequency,
+        is_active=is_active,
+        start_date=start_date,
+        frequency_type=frequency_type,
+        frequency_value=frequency_value,
+        frequency_unit=frequency_unit,
+        specific_day_type=specific_day_type if specific_day_type else None,
+        weekday=weekday,
+        monthday=monthday,
+        frequency_preset=frequency_preset
+    )
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/activate-subscription/{subscription_id}")
