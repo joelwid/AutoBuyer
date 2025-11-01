@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title="AutoBuyer")
+app = FastAPI(title="MyAboabo")
 
 # Security configuration
 SECRET_KEY = secrets.token_urlsafe(32)
