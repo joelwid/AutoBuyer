@@ -3,9 +3,32 @@ services:
     build: .
     container_name: fastapi_app
     restart: unless-stopped
-    # Optional for local testing; not required in production behind Caddy:
     ports:
       - "8000:8000"
+    environment:
+      - SELENIUM_URL=http://selenium:4444
+    volumes:
+      - ./artifacts:/usr/src/app/artifacts
+    depends_on:
+      selenium:
+        condition: service_healthy
+
+  selenium:
+    image: seleniarm/standalone-chromium:latest
+    container_name: selenium
+    restart: unless-stopped
+    shm_size: 2g
+    environment:
+      - SE_NODE_MAX_SESSIONS=1
+      - SE_NODE_SESSION_TIMEOUT=300
+    ports:
+      - "4444:4444"
+      # - "7900:7900"   # (optional) noVNC viewer
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsSL http://localhost:4444/status | grep -q 'ready'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   caddy:
     image: caddy:2
