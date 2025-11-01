@@ -779,9 +779,9 @@ def test_selenium():
         #driver.get(url)
         #WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "h1")))
         #title = driver.title
-        price = recognize_products(driver, url)
-        if price:
-            return {"message": "Success!", "title": price}
+        product_data = recognize_products(driver, url)
+        if product_data:
+            return {"message": "Success!", "title": product_data}
         else:
             return {"message": "Fail!", "title": 'None'}
     finally:

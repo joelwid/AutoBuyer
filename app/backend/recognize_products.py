@@ -97,12 +97,56 @@ def pick_first_image_url(soup: BeautifulSoup, base_url: str) -> str | None:
 
     return None
 
-def parse_title_and_first_image(url: str) -> dict:
+import re
+
+def get_price(soup: BeautifulSoup) -> str | None:
+    """
+    Try to extract a visible or metadata price string from a product page.
+    Returns a cleaned string like 'CHF 249.–' or '249.00 CHF'.
+    """
+
+    # 1. Look for schema.org / Open Graph metadata
+    meta_selectors = [
+        ("meta", {"itemprop": "price"}),
+        ("meta", {"property": "product:price:amount"}),
+        ("meta", {"name": "twitter:data1"}),
+    ]
+    for tag_name, attrs in meta_selectors:
+        tag = soup.find(tag_name, attrs=attrs)
+        if tag and tag.get("content"):
+            return tag["content"].strip()
+
+    # 2. Common visible price classes or ids
+    price_like = soup.find(
+        lambda tag: tag.name in ["span", "div"] and (
+            "price" in " ".join(tag.get("class", [])).lower()
+            or "price" in (tag.get("id", "")).lower()
+        )
+    )
+    if price_like and price_like.get_text(strip=True):
+        text = price_like.get_text(strip=True)
+        if re.search(r"\d", text):
+            return text
+
+    # 3. Regex scan for CHF/€/$ patterns anywhere in text
+    # Example matches: "CHF 249.–", "CHF 249.00", "249.00 CHF"
+    match = re.search(
+        r"(CHF|EUR|€|\$)\s*[\d'’.,\-–]+|[\d'’.,\-–]+\s*(CHF|EUR|€|\$)",
+        soup.get_text(" ", strip=True)
+    )
+    if match:
+        return match.group(0).strip()
+
+    return None
+
+
+def get_product_data_from_url(url: str) -> dict:
     html = fetch_html(url)
     soup = BeautifulSoup(html, "html.parser")
     title = pick_title(soup)
     image_url = pick_first_image_url(soup, url)
-    return {"title": title, "image_url": image_url}
+    price = get_price(soup)
+    return {"title": title, "image_url": image_url, "price": price}
 
 
 def recognize_products(driver, url: str):
@@ -113,7 +157,7 @@ def recognize_products(driver, url: str):
     if product_id:
 
         galaxus_url = f"https://galaxus.ch/product/{product_id}"
-        product_data = parse_title_and_first_image(galaxus_url)
+        product_data = get_product_data_from_url(galaxus_url)
         return product_data
     return None
     
