@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form, HTTPException, status
+from fastapi import FastAPI, Request, Form, HTTPException, status, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -14,6 +14,9 @@ import aiosmtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
 
+from app.backend.recognize_products import recognize_products
+from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+from app.backend.emailer import send_email
 # from app.backend.recognize_products import recognize_products
 # from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
 from backend.recognize_products import recognize_products
@@ -28,15 +31,11 @@ app = FastAPI(title="MyAboabo")
 # Security configuration
 SECRET_KEY = secrets.token_urlsafe(32)
 
-
-
-
-# Email configuration (configure these with your SMTP settings)
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")  # Set your email
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")  # Set your app password
-FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USER)
+class MailIn(BaseModel):
+    to: EmailStr
+    subject: str
+    text: str
+    html: str | None = None
 
 # Database setup
 DB_PATH = os.path.join(os.path.dirname(__file__), "autobuyer.db")
@@ -1357,6 +1356,13 @@ async def get_products(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     return {"products": get_all_products()}
+
+
+@app.post("/send")
+def send_mail(payload: MailIn, bg: BackgroundTasks):
+    # send in background to keep API snappy
+    bg.add_task(send_email, payload.to, payload.subject, payload.text, payload.html)
+    return {"status": "queued"}
 
 @app.get("/email-preview", response_class=HTMLResponse)
 async def email_preview(request: Request):
