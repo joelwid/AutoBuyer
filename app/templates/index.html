@@ -60,6 +60,15 @@
                             <option value="with-subscription">Mit Abo</option>
                             <option value="without-subscription">Ohne Abo</option>
                         </select>
+                        <select id="productSort" onchange="sortProducts()">
+                            <option value="">Sortieren nach...</option>
+                            <option value="name-asc">Name (A-Z)</option>
+                            <option value="name-desc">Name (Z-A)</option>
+                            <option value="price-asc">Preis (niedrig-hoch)</option>
+                            <option value="price-desc">Preis (hoch-niedrig)</option>
+                            <option value="date-asc">Datum (alt-neu)</option>
+                            <option value="date-desc">Datum (neu-alt)</option>
+                        </select>
                     </div>
                     <div class="product-list" id="productList">
                         {% if all_products %}
@@ -67,7 +76,8 @@
                             <div class="product-card {% if product.has_active_subscription %}active-indicator{% endif %}" 
                                  data-product-name="{{ product.name|lower }}" 
                                  data-has-subscription="{{ 'true' if product.has_active_subscription else 'false' }}"
-                                 data-price="{{ product.price or '' }}">
+                                 data-price="{{ product.price or '0' }}"
+                                 data-date="{{ product.added_at.timestamp() if product.added_at else 0 }}">
                                 {% if product.image_url %}
                                 <div class="product-image">
                                     <img src="{{ product.image_url }}" alt="{{ product.name }}">
@@ -116,6 +126,17 @@
                             <option value="active">Nur Aktive</option>
                             <option value="inactive">Nur Inaktive</option>
                         </select>
+                        <select id="subscriptionSort" onchange="sortSubscriptions()">
+                            <option value="">Sortieren nach...</option>
+                            <option value="name-asc">Name (A-Z)</option>
+                            <option value="name-desc">Name (Z-A)</option>
+                            <option value="price-asc">Preis (niedrig-hoch)</option>
+                            <option value="price-desc">Preis (hoch-niedrig)</option>
+                            <option value="frequency-asc">Frequenz (A-Z)</option>
+                            <option value="frequency-desc">Frequenz (Z-A)</option>
+                            <option value="date-asc">Datum (alt-neu)</option>
+                            <option value="date-desc">Datum (neu-alt)</option>
+                        </select>
                     </div>
                     <div class="subscription-list" id="subscriptionList">
                         {% if all_subscriptions %}
@@ -123,7 +144,9 @@
                             <div class="subscription-card {% if sub.is_active %}active{% endif %}" 
                                  data-subscription-name="{{ sub.product_name|lower }}" 
                                  data-is-active="{{ 'true' if sub.is_active else 'false' }}"
-                                 data-frequency="{{ sub.frequency }}">
+                                 data-frequency="{{ sub.frequency }}"
+                                 data-price="{{ sub.product_price or '0' }}"
+                                 data-date="{{ sub.created_at.timestamp() if sub.created_at else 0 }}">
                                 {% if sub.product_image %}
                                 <div class="product-image">
                                     <img src="{{ sub.product_image }}" alt="{{ sub.product_name }}">
@@ -436,6 +459,86 @@
 
             // Update count
             document.getElementById('subscriptionCount').textContent = visibleCount;
+        }
+
+        // Sort products
+        function sortProducts() {
+            const sortValue = document.getElementById('productSort').value;
+            if (!sortValue) return;
+
+            const productList = document.getElementById('productList');
+            const products = Array.from(document.querySelectorAll('.product-card'));
+
+            products.sort((a, b) => {
+                const [field, order] = sortValue.split('-');
+                let aValue, bValue;
+
+                switch(field) {
+                    case 'name':
+                        aValue = a.getAttribute('data-product-name');
+                        bValue = b.getAttribute('data-product-name');
+                        break;
+                    case 'price':
+                        aValue = parseFloat(a.getAttribute('data-price')) || 0;
+                        bValue = parseFloat(b.getAttribute('data-price')) || 0;
+                        break;
+                    case 'date':
+                        aValue = parseFloat(a.getAttribute('data-date')) || 0;
+                        bValue = parseFloat(b.getAttribute('data-date')) || 0;
+                        break;
+                }
+
+                if (order === 'asc') {
+                    return aValue > bValue ? 1 : -1;
+                } else {
+                    return aValue < bValue ? 1 : -1;
+                }
+            });
+
+            // Re-append in sorted order
+            products.forEach(product => productList.appendChild(product));
+        }
+
+        // Sort subscriptions
+        function sortSubscriptions() {
+            const sortValue = document.getElementById('subscriptionSort').value;
+            if (!sortValue) return;
+
+            const subscriptionList = document.getElementById('subscriptionList');
+            const subscriptions = Array.from(document.querySelectorAll('.subscription-card'));
+
+            subscriptions.sort((a, b) => {
+                const [field, order] = sortValue.split('-');
+                let aValue, bValue;
+
+                switch(field) {
+                    case 'name':
+                        aValue = a.getAttribute('data-subscription-name');
+                        bValue = b.getAttribute('data-subscription-name');
+                        break;
+                    case 'price':
+                        aValue = parseFloat(a.getAttribute('data-price')) || 0;
+                        bValue = parseFloat(b.getAttribute('data-price')) || 0;
+                        break;
+                    case 'frequency':
+                        aValue = a.getAttribute('data-frequency');
+                        bValue = b.getAttribute('data-frequency');
+                        break;
+                    case 'date':
+                        aValue = parseFloat(a.getAttribute('data-date')) || 0;
+                        bValue = parseFloat(b.getAttribute('data-date')) || 0;
+                        break;
+                }
+
+                if (order === 'asc') {
+                    return aValue > bValue ? 1 : -1;
+                } else {
+                    return aValue < bValue ? 1 : -1;
+                }
+            });
+
+            // Re-append in sorted order
+            subscriptions.forEach(subscription => subscriptionList.appendChild(subscription));
         }
 
         // Close modal when clicking outside
