@@ -9,10 +9,14 @@ import hashlib
 import secrets
 import sqlite3
 import os
+import sys
+import subprocess
 import random
 import aiosmtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 # from app.backend.recognize_products import recognize_products
 # from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
@@ -874,6 +878,51 @@ def update_product_status(product_id: int, is_active: bool) -> bool:
 # Initialize database on startup
 init_db()
 
+# Initialize APScheduler for daily email job
+scheduler = BackgroundScheduler()
+
+def run_email_job():
+    """Function to run the email_job.py script"""
+    try:
+        # Get the path to email_job.py
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(app_dir)
+        email_job_path = os.path.join(project_root, "email_job.py")
+        
+        print(f"Running email job at {datetime.now()}")
+        
+        # Run the email_job.py script
+        result = subprocess.run(
+            [sys.executable, email_job_path],
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minute timeout
+            cwd=project_root
+        )
+        
+        if result.returncode == 0:
+            print(f"✅ Email job completed successfully")
+            print(result.stdout)
+        else:
+            print(f"❌ Email job failed with error:")
+            print(result.stderr)
+            
+    except Exception as e:
+        print(f"❌ Error running email job: {str(e)}")
+
+# Schedule the email job to run daily at 9:00 AM
+scheduler.add_job(
+    run_email_job,
+    trigger=CronTrigger(hour=9, minute=0),  # Run at 9:00 AM every day
+    id='daily_email_job',
+    name='Send daily subscription reminder emails',
+    replace_existing=True
+)
+
+# Start the scheduler
+scheduler.start()
+print("✅ Scheduler started - Email job will run daily at 9:00 AM")
+
 # Session storage (replace with Redis or database later)
 sessions = {}
 pending_2fa = {}  # Temporary storage for pending 2FA logins
@@ -1367,24 +1416,32 @@ def send_mail(payload: MailIn, bg: BackgroundTasks):
 @app.post("/send-subscription-email")
 async def send_subscription_email_route(request: Request):
     """Run the email_job.py script to send emails to users with subscriptions due tomorrow"""
-    import subprocess
-    
     user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
-        # Get the path to email_job.py
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        parent_dir = os.path.dirname(current_dir)
-        email_job_path = os.path.join(parent_dir, "email_job.py")
+        # Get the path to email_job.py (same as in scheduler)
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(app_dir)
+        email_job_path = os.path.join(project_root, "email_job.py")
         
-        # Run the email_job.py script
+        # Check if file exists
+        if not os.path.exists(email_job_path):
+            return JSONResponse({
+                "success": False,
+                "message": f"email_job.py nicht gefunden: {email_job_path}"
+            })
+        
+        print(f"Running email job manually at {datetime.now()}")
+        
+        # Run the email_job.py script using the same Python interpreter
         result = subprocess.run(
-            ["python", email_job_path],
+            [sys.executable, email_job_path],
             capture_output=True,
             text=True,
-            timeout=60  # 60 second timeout
+            timeout=60,  # 60 second timeout
+            cwd=project_root  # Set working directory to project root
         )
         
         if result.returncode == 0:
@@ -1486,6 +1543,13 @@ async def email_preview(request: Request):
     
     # Return the rendered HTML
     return HTMLResponse(content=email_html)
+
+
+# Shutdown event to stop the scheduler
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
+    print("✅ Scheduler stopped")
 
 
 if __name__ == "__main__":
