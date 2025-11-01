@@ -97,6 +97,9 @@ def send_daily_reminders():
     print(f"Template: {TEMPLATE_PATH}")
     print(f"Base URL: {BASE_URL}")
     
+    # Calculate tomorrow's date
+    tomorrow = datetime.now() + timedelta(days=1)
+    
     # Get users with subscriptions due tomorrow
     users_to_notify = get_users_with_subscriptions_due_tomorrow()
     
@@ -105,6 +108,11 @@ def send_daily_reminders():
         return
     
     print(f"Found {len(users_to_notify)} users with subscriptions due tomorrow")
+    print("\n" + "="*50)
+    print("Users to receive emails:")
+    for user_id, user_email in users_to_notify:
+        print(f"  - {user_email} (ID: {user_id})")
+    print("="*50 + "\n")
     
     # Send emails to each user
     success_count = 0
@@ -114,11 +122,13 @@ def send_daily_reminders():
         try:
             print(f"Sending email to {user_email} (user_id: {user_id})...")
             
+            # Pass tomorrow's date to only include subscriptions due tomorrow
             result = send_subscription_reminder_email(
                 user_email=user_email,
                 user_id=user_id,
                 base_url=BASE_URL,
-                template_path=str(TEMPLATE_PATH)
+                template_path=str(TEMPLATE_PATH),
+                target_date=tomorrow  # Only send subscriptions due tomorrow
             )
             
             if result["success"]:

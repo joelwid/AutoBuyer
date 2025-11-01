@@ -51,6 +51,63 @@ def get_active_subscriptions(user_id: int) -> List[dict]:
         })
     return subscriptions
 
+def get_subscriptions_due_date(user_id: int, target_date: datetime) -> List[dict]:
+    """Get subscriptions for a user that are due on a specific date"""
+    if not DB_PATH:
+        raise RuntimeError("Database path not set")
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.created_at
+        FROM subscriptions s
+        JOIN products p ON s.product_id = p.id
+        WHERE s.is_active = 1 AND s.user_id = ?
+        ORDER BY s.created_at DESC
+    """, (user_id,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    from datetime import timedelta
+    
+    def get_next_buy_date(created_at: datetime, frequency: int) -> datetime:
+        """Calculate next buy date for a subscription"""
+        days_since_creation = (datetime.now() - created_at).days
+        days_until_next = frequency - (days_since_creation % frequency)
+        next_buy_date = datetime.now() + timedelta(days=days_until_next)
+        return next_buy_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    subscriptions = []
+    target_date_normalized = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    for row in rows:
+        try:
+            created_at = datetime.fromisoformat(row[7]) if row[7] else datetime.now()
+            frequency = int(row[6]) if isinstance(row[6], (int, str)) and str(row[6]).isdigit() else None
+            
+            if frequency:
+                next_buy = get_next_buy_date(created_at, frequency)
+                
+                # Check if this subscription is due on the target date
+                if next_buy.date() == target_date_normalized.date():
+                    subscriptions.append({
+                        "id": row[0],
+                        "product_id": row[1],
+                        "product_name": row[2],
+                        "product_url": row[3],
+                        "product_image": row[4],
+                        "product_price": row[5],
+                        "frequency": row[6],
+                        "created_at": created_at
+                    })
+        except (ValueError, TypeError) as e:
+            print(f"Error processing subscription {row[0]}: {e}")
+            continue
+    
+    return subscriptions
+
 def generate_subscription_email_html(subscriptions: List[dict], base_url: str, template_path: str) -> str:
     """Generate HTML email from template with subscription data"""
     
@@ -115,7 +172,7 @@ def generate_subscription_email_html(subscriptions: List[dict], base_url: str, t
     
     return email_html
 
-def send_subscription_reminder_email(user_email: str, user_id: int, base_url: str, template_path: str) -> dict:
+def send_subscription_reminder_email(user_email: str, user_id: int, base_url: str, template_path: str, target_date: Optional[datetime] = None) -> dict:
     """
     Send subscription reminder email to a user
     
@@ -124,18 +181,22 @@ def send_subscription_reminder_email(user_email: str, user_id: int, base_url: st
         user_id: User ID to fetch subscriptions for
         base_url: Base URL for absolute links (e.g., http://localhost:8000)
         template_path: Path to email template file
+        target_date: Optional specific date to check for subscriptions (defaults to all active subscriptions)
     
     Returns:
         dict with success status and message
     """
     
-    # Get active subscriptions
-    subscriptions = get_active_subscriptions(user_id)
+    # Get subscriptions - either all active or only those due on target_date
+    if target_date:
+        subscriptions = get_subscriptions_due_date(user_id, target_date)
+    else:
+        subscriptions = get_active_subscriptions(user_id)
     
     if not subscriptions:
         return {
             "success": False,
-            "message": "Keine aktiven Abos gefunden"
+            "message": "Keine aktiven Abos gefunden" if not target_date else "Keine Abos für dieses Datum gefunden"
         }
     
     # Generate email HTML
