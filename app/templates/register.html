@@ -52,7 +52,8 @@
         }
 
         input[type="text"],
-        input[type="password"] {
+        input[type="password"],
+        input[type="email"] {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
@@ -123,15 +124,7 @@
     <div class="register-container">
         <h1>Registrierung</h1>
         
-        {% if request.query_params.get('error') == 'user_exists' %}
-        <div class="error-message">
-            Benutzername existiert bereits
-        </div>
-        {% elif request.query_params.get('error') == 'username_short' %}
-        <div class="error-message">
-            Benutzername muss mindestens 3 Zeichen lang sein
-        </div>
-        {% elif request.query_params.get('error') == 'password_short' %}
+        {% if request.query_params.get('error') == 'password_short' %}
         <div class="error-message">
             Passwort muss mindestens 6 Zeichen lang sein
         </div>
@@ -151,15 +144,9 @@
 
         <form method="post" action="/register">
             <div class="form-group">
-                <label for="username">Benutzername</label>
-                <input type="text" id="username" name="username" required autofocus>
-                <p class="info-text">Mindestens 3 Zeichen</p>
-            </div>
-
-            <div class="form-group">
                 <label for="email">E-Mail-Adresse</label>
-                <input type="email" id="email" name="email" required>
-                <p class="info-text">Für Zwei-Faktor-Authentifizierung</p>
+                <input type="email" id="email" name="email" required autofocus>
+                <p class="info-text">Ihre E-Mail-Adresse für das Konto</p>
             </div>
 
             <div class="form-group">

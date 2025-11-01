@@ -14,10 +14,10 @@ import aiosmtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
 
-from app.backend.recognize_products import recognize_products
-from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
-# from backend.recognize_products import recognize_products
-# from backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+# from app.backend.recognize_products import recognize_products
+# from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+from backend.recognize_products import recognize_products
+from backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
 # Load environment variables
 load_dotenv()
 
@@ -305,6 +305,28 @@ def get_user_by_username(username: str) -> Optional[dict]:
         }
     return None
 
+def get_user_by_email(email: str) -> Optional[dict]:
+    """Get user from database by email"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, username, email, hashed_password, two_factor_enabled, created_at FROM users WHERE email = ?",
+        (email,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return {
+            "id": row[0],
+            "username": row[1],
+            "email": row[2],
+            "hashed_password": row[3],
+            "two_factor_enabled": bool(row[4]),
+            "created_at": row[5]
+        }
+    return None
+
 def get_user_by_id(user_id: int) -> Optional[dict]:
     """Get user from database by ID"""
     conn = sqlite3.connect(DB_PATH)
@@ -343,15 +365,15 @@ def create_user(username: str, email: str, password: str) -> bool:
     except sqlite3.IntegrityError:
         return False
 
-def update_user_password(username: str, new_password: str) -> bool:
-    """Update user password in database"""
+def update_user_password(email: str, new_password: str) -> bool:
+    """Update user password in database by email"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         hashed_pw = hash_password(new_password)
         cursor.execute(
-            "UPDATE users SET hashed_password = ? WHERE username = ?",
-            (hashed_pw, username)
+            "UPDATE users SET hashed_password = ? WHERE email = ?",
+            (hashed_pw, email)
         )
         conn.commit()
         conn.close()
@@ -446,19 +468,33 @@ AutoBuyer Team
         print(f"❌ Failed to send email: {e}")
         print(f"⚠️  Verification code for {username}: {code}")
 
-def get_all_products() -> List[dict]:
-    """Get all products from database"""
+def get_all_products(user_id: int = None) -> List[dict]:
+    """Get all products from database, optionally filtered by user_id"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT p.id, p.url, p.name, p.image_url, p.price, p.added_at,
-               CASE WHEN EXISTS (
-                   SELECT 1 FROM subscriptions s 
-                   WHERE s.product_id = p.id AND s.is_active = 1
-               ) THEN 1 ELSE 0 END as has_active_subscription
-        FROM products p
-        ORDER BY p.added_at DESC
-    """)
+    
+    if user_id is not None:
+        cursor.execute("""
+            SELECT p.id, p.url, p.name, p.image_url, p.price, p.added_at,
+                   CASE WHEN EXISTS (
+                       SELECT 1 FROM subscriptions s 
+                       WHERE s.product_id = p.id AND s.is_active = 1 AND s.user_id = ?
+                   ) THEN 1 ELSE 0 END as has_active_subscription
+            FROM products p
+            WHERE p.user_id = ?
+            ORDER BY p.added_at DESC
+        """, (user_id, user_id))
+    else:
+        cursor.execute("""
+            SELECT p.id, p.url, p.name, p.image_url, p.price, p.added_at,
+                   CASE WHEN EXISTS (
+                       SELECT 1 FROM subscriptions s 
+                       WHERE s.product_id = p.id AND s.is_active = 1
+                   ) THEN 1 ELSE 0 END as has_active_subscription
+            FROM products p
+            ORDER BY p.added_at DESC
+        """)
+    
     rows = cursor.fetchall()
     conn.close()
     
@@ -475,24 +511,33 @@ def get_all_products() -> List[dict]:
         })
     return products
 
-def add_product_to_db(url: str, name: str, image_url: str = None, price: str = None) -> int:
+def add_product_to_db(url: str, name: str, image_url: str = None, price: str = None, user_id: int = None) -> int:
     """Add a new product to database"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO products (url, name, image_url, price, added_at) VALUES (?, ?, ?, ?, ?)",
-        (url, name, image_url, price, datetime.now().isoformat())
+        "INSERT INTO products (url, name, image_url, price, added_at, user_id) VALUES (?, ?, ?, ?, ?, ?)",
+        (url, name, image_url, price, datetime.now().isoformat(), user_id)
     )
     product_id = cursor.lastrowid
     conn.commit()
     conn.close()
     return product_id
 
-def delete_product_from_db(product_id: int) -> bool:
+def delete_product_from_db(product_id: int, user_id: int = None) -> bool:
     """Delete product and its subscriptions from database"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        
+        # Verify ownership if user_id is provided
+        if user_id is not None:
+            cursor.execute("SELECT user_id FROM products WHERE id = ?", (product_id,))
+            row = cursor.fetchone()
+            if not row or row[0] != user_id:
+                conn.close()
+                return False
+        
         # Delete associated subscriptions first
         cursor.execute("DELETE FROM subscriptions WHERE product_id = ?", (product_id,))
         # Delete product
@@ -507,7 +552,7 @@ def create_subscription(product_id: int, frequency: str, is_active: bool = True,
                        start_date: str = None, frequency_type: str = None,
                        frequency_value: int = None, frequency_unit: str = None,
                        specific_day_type: str = None, weekday: int = None, monthday: int = None,
-                       frequency_preset: str = None) -> int:
+                       frequency_preset: str = None, user_id: int = None) -> int:
     """Create a new subscription for a product"""
     # Calculate next buy date
     next_buy_date = calculate_next_buy_date(
@@ -520,27 +565,38 @@ def create_subscription(product_id: int, frequency: str, is_active: bool = True,
     cursor.execute(
         """INSERT INTO subscriptions 
            (product_id, frequency, is_active, created_at, start_date, frequency_type, 
-            frequency_value, frequency_unit, specific_day_type, weekday, monthday, next_buy_date) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            frequency_value, frequency_unit, specific_day_type, weekday, monthday, next_buy_date, user_id) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (product_id, frequency, 1 if is_active else 0, datetime.now().isoformat(),
          start_date, frequency_type, frequency_value, frequency_unit, 
-         specific_day_type, weekday, monthday, next_buy_date)
+         specific_day_type, weekday, monthday, next_buy_date, user_id)
     )
     subscription_id = cursor.lastrowid
     conn.commit()
     conn.close()
     return subscription_id
 
-def get_all_subscriptions() -> List[dict]:
-    """Get all subscriptions with product details"""
+def get_all_subscriptions(user_id: int = None) -> List[dict]:
+    """Get all subscriptions with product details, optionally filtered by user_id"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.is_active, s.created_at, s.next_buy_date
-        FROM subscriptions s
-        JOIN products p ON s.product_id = p.id
-        ORDER BY s.created_at DESC
-    """)
+    
+    if user_id is not None:
+        cursor.execute("""
+            SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.is_active, s.created_at, s.next_buy_date
+            FROM subscriptions s
+            JOIN products p ON s.product_id = p.id
+            WHERE s.user_id = ?
+            ORDER BY s.created_at DESC
+        """, (user_id,))
+    else:
+        cursor.execute("""
+            SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.is_active, s.created_at, s.next_buy_date
+            FROM subscriptions s
+            JOIN products p ON s.product_id = p.id
+            ORDER BY s.created_at DESC
+        """)
+    
     rows = cursor.fetchall()
     conn.close()
     
@@ -569,17 +625,28 @@ def get_all_subscriptions() -> List[dict]:
         })
     return subscriptions
 
-def get_active_subscriptions() -> List[dict]:
-    """Get all active subscriptions"""
+def get_active_subscriptions(user_id: int = None) -> List[dict]:
+    """Get all active subscriptions, optionally filtered by user_id"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.created_at
-        FROM subscriptions s
-        JOIN products p ON s.product_id = p.id
-        WHERE s.is_active = 1
-        ORDER BY s.created_at DESC
-    """)
+    
+    if user_id is not None:
+        cursor.execute("""
+            SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.created_at
+            FROM subscriptions s
+            JOIN products p ON s.product_id = p.id
+            WHERE s.is_active = 1 AND s.user_id = ?
+            ORDER BY s.created_at DESC
+        """, (user_id,))
+    else:
+        cursor.execute("""
+            SELECT s.id, s.product_id, p.name, p.url, p.image_url, p.price, s.frequency, s.created_at
+            FROM subscriptions s
+            JOIN products p ON s.product_id = p.id
+            WHERE s.is_active = 1
+            ORDER BY s.created_at DESC
+        """)
+    
     rows = cursor.fetchall()
     conn.close()
     
@@ -597,11 +664,20 @@ def get_active_subscriptions() -> List[dict]:
         })
     return subscriptions
 
-def update_subscription_status(subscription_id: int, is_active: bool) -> bool:
+def update_subscription_status(subscription_id: int, is_active: bool, user_id: int = None) -> bool:
     """Update subscription active status"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        
+        # Verify ownership if user_id is provided
+        if user_id is not None:
+            cursor.execute("SELECT user_id FROM subscriptions WHERE id = ?", (subscription_id,))
+            row = cursor.fetchone()
+            if not row or row[0] != user_id:
+                conn.close()
+                return False
+        
         cursor.execute(
             "UPDATE subscriptions SET is_active = ? WHERE id = ?",
             (1 if is_active else 0, subscription_id)
@@ -664,11 +740,20 @@ def update_all_next_buy_dates():
     for sub_id in subscription_ids:
         update_next_buy_date(sub_id)
 
-def delete_subscription_from_db(subscription_id: int) -> bool:
+def delete_subscription_from_db(subscription_id: int, user_id: int = None) -> bool:
     """Delete a subscription from the database"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        
+        # Verify ownership if user_id is provided
+        if user_id is not None:
+            cursor.execute("SELECT user_id FROM subscriptions WHERE id = ?", (subscription_id,))
+            row = cursor.fetchone()
+            if not row or row[0] != user_id:
+                conn.close()
+                return False
+        
         cursor.execute("DELETE FROM subscriptions WHERE id = ?", (subscription_id,))
         conn.commit()
         conn.close()
@@ -740,7 +825,16 @@ class Product(BaseModel):
 def get_current_user(request: Request) -> Optional[str]:
     session_token = request.cookies.get("session_token")
     if session_token and session_token in sessions:
-        return sessions[session_token]["username"]
+        return sessions[session_token]["email"]
+    return None
+
+def get_current_user_id(request: Request) -> Optional[int]:
+    """Get the current user's ID from the session"""
+    email = get_current_user(request)
+    if email:
+        user = get_user_by_email(email)
+        if user:
+            return user["id"]
     return None
 
 @app.get("/login", response_class=HTMLResponse)
@@ -748,35 +842,18 @@ async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
-    user = get_user_by_username(username)
+async def login(email: str = Form(...), password: str = Form(...)):
+    user = get_user_by_email(email)
     if not user:
         return RedirectResponse(url="/login?error=1", status_code=303)
     
     if not verify_password(password, user["hashed_password"]):
         return RedirectResponse(url="/login?error=1", status_code=303)
     
-    # Check if 2FA is enabled
-    if user["two_factor_enabled"]:
-        # Generate and send verification code
-        code = create_verification_code(user["id"])
-        await send_verification_email(user["email"], code, user["username"])
-        
-        # Store pending login
-        temp_token = secrets.token_urlsafe(32)
-        pending_2fa[temp_token] = {
-            "user_id": user["id"],
-            "created_at": datetime.now()
-        }
-        
-        response = RedirectResponse(url="/verify-2fa", status_code=303)
-        response.set_cookie(key="pending_2fa_token", value=temp_token, httponly=True, max_age=600)
-        return response
-    
-    # No 2FA, log in directly
+    # Log in directly without 2FA
     session_token = secrets.token_urlsafe(32)
     sessions[session_token] = {
-        "username": username,
+        "email": email,
         "created_at": datetime.now()
     }
     
@@ -839,13 +916,14 @@ async def register_page(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
 @app.post("/register")
-async def register(username: str = Form(...), email: str = Form(...), password: str = Form(...), password_confirm: str = Form(...)):
+async def register(email: str = Form(...), password: str = Form(...), password_confirm: str = Form(...)):
     # Validate inputs
-    if get_user_by_username(username):
-        return RedirectResponse(url="/register?error=user_exists", status_code=303)
+    if get_user_by_email(email):
+        return RedirectResponse(url="/register?error=email_exists", status_code=303)
     
-    if len(username) < 3:
-        return RedirectResponse(url="/register?error=username_short", status_code=303)
+    # Validate email format (basic check)
+    if "@" not in email or "." not in email:
+        return RedirectResponse(url="/register?error=invalid_email", status_code=303)
     
     if len(password) < 6:
         return RedirectResponse(url="/register?error=password_short", status_code=303)
@@ -853,18 +931,14 @@ async def register(username: str = Form(...), email: str = Form(...), password: 
     if password != password_confirm:
         return RedirectResponse(url="/register?error=password_mismatch", status_code=303)
     
-    # Validate email format (basic check)
-    if "@" not in email or "." not in email:
-        return RedirectResponse(url="/register?error=invalid_email", status_code=303)
-    
-    # Create new user
-    if not create_user(username, email, password):
+    # Create new user - use email as username too
+    if not create_user(email, email, password):
         return RedirectResponse(url="/register?error=email_exists", status_code=303)
     
     # Auto-login after registration
     session_token = secrets.token_urlsafe(32)
     sessions[session_token] = {
-        "username": username,
+        "email": email,
         "created_at": datetime.now()
     }
     
@@ -891,7 +965,7 @@ async def change_password(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    user_data = get_user_by_username(user)
+    user_data = get_user_by_email(user)
     if not user_data:
         return RedirectResponse(url="/login", status_code=303)
     
@@ -918,11 +992,13 @@ async def home(request: Request):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    user_id = get_current_user_id(request)
+    
     # Update next buy dates for all subscriptions
     update_all_next_buy_dates()
     
-    all_products = get_all_products()
-    all_subscriptions = get_all_subscriptions()
+    all_products = get_all_products(user_id)
+    all_subscriptions = get_all_subscriptions(user_id)
     
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -965,8 +1041,10 @@ async def add_product(request: Request, url: str = Form(...), title: str = Form(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    user_id = get_current_user_id(request)
+    
     # Add product with already-scraped data
-    add_product_to_db(url, title, image_url, price)
+    add_product_to_db(url, title, image_url, price, user_id)
     
     return RedirectResponse(url="/", status_code=303)
 
@@ -982,6 +1060,8 @@ async def create_subscription_route(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    user_id = get_current_user_id(request)
+    
     # Checkbox will send "on" if checked, None if unchecked
     is_active = activate == "on"
     
@@ -996,7 +1076,8 @@ async def create_subscription_route(
         specific_day_type=None,
         weekday=None,
         monthday=None,
-        frequency_preset=frequency
+        frequency_preset=frequency,
+        user_id=user_id
     )
     return RedirectResponse(url="/", status_code=303)
 
@@ -1006,7 +1087,8 @@ async def activate_subscription(request: Request, subscription_id: int):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    update_subscription_status(subscription_id, True)
+    user_id = get_current_user_id(request)
+    update_subscription_status(subscription_id, True, user_id)
     return RedirectResponse(url="/", status_code=303)
 
 @app.post("/deactivate-subscription/{subscription_id}")
@@ -1015,7 +1097,8 @@ async def deactivate_subscription(request: Request, subscription_id: int):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
-    update_subscription_status(subscription_id, False)
+    user_id = get_current_user_id(request)
+    update_subscription_status(subscription_id, False, user_id)
     return RedirectResponse(url="/", status_code=303)
 
 @app.delete("/delete-subscription/{subscription_id}")
@@ -1024,7 +1107,10 @@ async def delete_subscription(request: Request, subscription_id: int):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    delete_subscription_from_db(subscription_id)
+    user_id = get_current_user_id(request)
+    success = delete_subscription_from_db(subscription_id, user_id)
+    if not success:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this subscription")
     return {"success": True}
 
 @app.post("/add-to-cart/{subscription_id}")
@@ -1034,15 +1120,17 @@ async def add_subscription_to_cart(request: Request, subscription_id: int):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+    user_id = get_current_user_id(request)
+    
     try:
-        # Get subscription details
+        # Get subscription details - verify ownership
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT p.url FROM subscriptions s
             JOIN products p ON s.product_id = p.id
-            WHERE s.id = ?
-        """, (subscription_id,))
+            WHERE s.id = ? AND s.user_id = ?
+        """, (subscription_id, user_id))
         row = cursor.fetchone()
         conn.close()
         
@@ -1071,15 +1159,17 @@ async def add_all_active_subscriptions_to_cart(request: Request):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
+    user_id = get_current_user_id(request)
+    
     try:
-        # Get all active subscriptions
+        # Get all active subscriptions for this user
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT p.url FROM subscriptions s
             JOIN products p ON s.product_id = p.id
-            WHERE s.is_active = 1
-        """)
+            WHERE s.is_active = 1 AND s.user_id = ?
+        """, (user_id,))
         rows = cursor.fetchall()
         conn.close()
         
@@ -1124,7 +1214,10 @@ async def delete_product(request: Request, product_id: int):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
-    delete_product_from_db(product_id)
+    user_id = get_current_user_id(request)
+    success = delete_product_from_db(product_id, user_id)
+    if not success:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this product")
     return {"success": True}
 
 @app.get("/api/products")

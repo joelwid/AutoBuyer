@@ -59,6 +59,7 @@
         }
 
         input[type="text"],
+        input[type="email"],
         input[type="password"] {
             width: 100%;
             padding: 12px;
@@ -69,6 +70,7 @@
         }
 
         input[type="text"]:focus,
+        input[type="email"]:focus,
         input[type="password"]:focus {
             outline: none;
             border-color: #8C1736;
@@ -137,14 +139,14 @@
         
         {% if request.query_params.get('error') %}
         <div class="error-message">
-            Ungültiger Benutzername oder Passwort
+            Ungültige E-Mail-Adresse oder Passwort
         </div>
         {% endif %}
 
         <form method="post" action="/login">
             <div class="form-group">
-                <label for="username">Benutzername</label>
-                <input type="text" id="username" name="username" required autofocus>
+                <label for="email">E-Mail-Adresse</label>
+                <input type="email" id="email" name="email" required autofocus>
             </div>
 
             <div class="form-group">
@@ -154,10 +156,6 @@
 
             <button type="submit" class="login-button">Anmelden</button>
         </form>
-
-        <div class="info-message">
-            Standard Login: admin / admin123
-        </div>
 
         <div class="register-link">
             Noch kein Konto? <a href="/register">Hier registrieren</a>
