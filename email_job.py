@@ -20,7 +20,7 @@ from backend.subscription_emailer import (
 )
 
 # Configuration
-DB_PATH = Path(__file__).parent / "users.db"
+DB_PATH = Path(__file__).parent / "app" / "autobuyer.db"
 TEMPLATE_PATH = Path(__file__).parent / "app" / "templates" / "E-Mail-Template.html"
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
@@ -54,7 +54,7 @@ def get_users_with_subscriptions_due_tomorrow() -> list:
     
     # Get all active subscriptions
     cursor.execute("""
-        SELECT DISTINCT u.id, u.username, s.created_at, s.frequency
+        SELECT DISTINCT u.id, u.email, s.created_at, s.frequency
         FROM users u
         JOIN subscriptions s ON u.id = s.user_id
         WHERE s.is_active = 1
