@@ -12,11 +12,6 @@ import os
 import random
 import aiosmtplib
 from email.message import EmailMessage
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
 
 # from backend.recognize_products import recognize_products
@@ -26,13 +21,6 @@ load_dotenv()
 
 app = FastAPI(title="MyAboabo")
 
-# Selenium stuff
-SELENIUM_URL = os.getenv("SELENIUM_URL", "http://selenium:4444")
-def make_driver():
-    options = Options()
-    options.add_argument('--icognito')
-    options.add_argument("--window-size=1280,800")
-    return webdriver.Remote(command_executor=SELENIUM_URL, options=options)
 
 
 # Security configuration
@@ -1086,21 +1074,6 @@ async def get_products(request: Request):
     
     return {"products": get_all_products()}
 
-@app.get("/test-selenium")
-def test_selenium():
-    driver = make_driver()
-    try:
-        url = "https://www.galaxus.ch/de/s1/product/hp-omen-x-25f-1920-x-1080-pixel-2450-monitor-12201676"
-        driver.get(url)
-        wait = WebDriverWait(driver, 10)
-        login_button = wait.until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-testid="header-login-button"]')))
-        print("Sucessfully clicked!")
-    except:
-        print("Failed")
-        
-    finally:
-        driver.quit()
 
 if __name__ == "__main__":
     import uvicorn
