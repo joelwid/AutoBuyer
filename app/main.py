@@ -1421,10 +1421,19 @@ async def send_subscription_email_route(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
-        # Get the path to email_job.py (same as in scheduler)
-        app_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(app_dir)
+        # Get the path to email_job.py
+        # __file__ is the path to main.py in the app directory
+        current_file = os.path.abspath(__file__)  # C:\...\AutoBuyer\app\main.py
+        app_dir = os.path.dirname(current_file)    # C:\...\AutoBuyer\app
+        project_root = os.path.dirname(app_dir)     # C:\...\AutoBuyer
         email_job_path = os.path.join(project_root, "email_job.py")
+        
+        # Debug logging
+        print(f"Current file: {current_file}")
+        print(f"App dir: {app_dir}")
+        print(f"Project root: {project_root}")
+        print(f"Email job path: {email_job_path}")
+        print(f"File exists: {os.path.exists(email_job_path)}")
         
         # Check if file exists
         if not os.path.exists(email_job_path):
