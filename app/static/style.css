@@ -553,6 +553,24 @@ h1 {
     background: #155a99;
 }
 
+.btn-generate-email {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: #8C1736;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.btn-generate-email:hover {
+    background: #6B0F28;
+}
+
 .btn-add-all-cart svg {
     stroke: white;
     fill: none;

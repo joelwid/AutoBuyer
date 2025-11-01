@@ -14,10 +14,10 @@ import aiosmtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
 
-from app.backend.recognize_products import recognize_products
-from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
-# from backend.recognize_products import recognize_products
-# from backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+# from app.backend.recognize_products import recognize_products
+# from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
+from backend.recognize_products import recognize_products
+from backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
 # Load environment variables
 load_dotenv()
 
@@ -1357,6 +1357,81 @@ async def get_products(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     return {"products": get_all_products()}
+
+@app.get("/email-preview", response_class=HTMLResponse)
+async def email_preview(request: Request):
+    """Generate an email preview with all active user subscriptions"""
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user_id = get_current_user_id(request)
+    
+    # Get all active subscriptions for the user
+    subscriptions = get_active_subscriptions(user_id)
+    
+    # Read the email template
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "E-Mail-Template.html")
+    with open(template_path, 'r', encoding='utf-8') as f:
+        email_html = f.read()
+    
+    # Replace year placeholder
+    from datetime import datetime
+    current_year = datetime.now().year
+    email_html = email_html.replace('{{Jahr}}', str(current_year))
+    
+    # Replace logo with correct path (logo in static folder)
+    # Use absolute URL for email compatibility
+    logo_url = request.url_for('static', path='Logo_rot.png')
+    email_html = email_html.replace('https://via.placeholder.com/120/FFFFFF/8C1736?text=LOGO', str(logo_url))
+    
+    # Remove the tip paragraph
+    import re
+    tip_pattern = r'<p class="text" style="margin:16px 0 0 0; font-size:13px; opacity:\.8;">.*?</p>'
+    email_html = re.sub(tip_pattern, '', email_html, flags=re.DOTALL)
+    
+    # Generate table rows for subscriptions
+    if subscriptions:
+        # Build table rows HTML
+        table_rows = ""
+        for sub in subscriptions:
+            # Default values if data is missing
+            title = sub.get('product_name', 'Unbekanntes Produkt')
+            image_url = sub.get('product_image') or 'https://via.placeholder.com/64/FFFFFF/8C1736?text=IMG'
+            price = sub.get('product_price', 'N/A')
+            if price and price != 'N/A':
+                price = f"CHF {price}"
+            product_url = sub.get('product_url', '#')
+            
+            row_html = f"""
+                  <tr>
+                    <td class="table-pad" style="padding:12px 14px; border-bottom:1px solid #EAC5D3;">
+                      <p class="text" style="margin:0; font-family:'Poppins', Arial, Helvetica, sans-serif;">{title}</p>
+                    </td>
+                    <td class="table-pad" style="padding:12px 14px; border-bottom:1px solid #EAC5D3;">
+                      <img class="img-64" src="{image_url}" width="64" height="64" alt="{title} Bild" style="border-radius:8px; background:#FFFFFF;">
+                    </td>
+                    <td class="table-pad" style="padding:12px 14px; border-bottom:1px solid #EAC5D3;">
+                      <p class="text" style="margin:0; font-family:'Poppins', Arial, Helvetica, sans-serif;">{price}</p>
+                    </td>
+                    <td class="table-pad" style="padding:12px 14px; border-bottom:1px solid #EAC5D3;">
+                      <a href="{product_url}" target="_blank" rel="noopener" class="btn">jetzt bestellen</a>
+                    </td>
+                  </tr>"""
+            table_rows += row_html
+        
+        # Find the placeholder rows in template and replace them
+        # The template has example rows between <!-- ZEILEN -> and <!-- /ZEILEN -->
+        import re
+        pattern = r'<!-- ZEILEN -> Dupliziere/ersetze ab hier pro Bestellung -->.*?<!-- /ZEILEN -->'
+        replacement = f'<!-- ZEILEN -> Dupliziere/ersetze ab hier pro Bestellung -->\n{table_rows}\n                  <!-- /ZEILEN -->'
+        email_html = re.sub(pattern, replacement, email_html, flags=re.DOTALL)
+    
+    # Replace unsubscribe URL placeholder
+    email_html = email_html.replace('{{UNSUBSCRIBE_URL}}', '#')
+    
+    # Return the rendered HTML
+    return HTMLResponse(content=email_html)
 
 
 if __name__ == "__main__":
