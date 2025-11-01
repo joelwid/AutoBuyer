@@ -46,3 +46,6 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+.pytest_cache
+.venv
+__pycache__/

@@ -6,3 +6,4 @@ pydantic
 aiosmtplib
 email-validator
 python-dotenv
+pytest
