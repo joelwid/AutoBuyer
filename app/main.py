@@ -1367,7 +1367,7 @@ def send_mail(payload: MailIn, bg: BackgroundTasks):
 @app.post("/send-subscription-email")
 async def send_subscription_email_route(request: Request):
     """Send subscription reminder email to current user"""
-    from backend.subscription_emailer import send_subscription_reminder_email, set_db_path
+    from app.backend.subscription_emailer import send_subscription_reminder_email, set_db_path
     
     user = get_current_user(request)
     if not user:
