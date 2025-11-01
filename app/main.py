@@ -20,7 +20,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from dotenv import load_dotenv
 
 # from backend.recognize_products import recognize_products
-from app.backend.recognize_products import recognize_products
+# from app.backend.recognize_products import recognize_products
+from app.backend.add_to_cart import add_product_to_cart, add_multiple_products_to_cart
 # Load environment variables
 load_dotenv()
 
@@ -1057,6 +1058,79 @@ async def delete_subscription(request: Request, subscription_id: int):
     
     delete_subscription_from_db(subscription_id)
     return {"success": True}
+
+@app.post("/add-to-cart/{subscription_id}")
+async def add_subscription_to_cart(request: Request, subscription_id: int):
+    """Add a single subscription product to Digitec cart"""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Get subscription details
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.url FROM subscriptions s
+            JOIN products p ON s.product_id = p.id
+            WHERE s.id = ?
+        """, (subscription_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            return JSONResponse({"success": False, "message": "Abo nicht gefunden"}, status_code=404)
+        
+        product_url = row[0]
+        
+        # Get Digitec credentials from environment or database
+        # For now, using environment variables
+        digitec_email = os.getenv("DIGITEC_EMAIL")
+        digitec_password = os.getenv("DIGITEC_PASSWORD")
+        
+        # Add to cart
+        result = add_product_to_cart(product_url, digitec_email, digitec_password)
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=500)
+
+@app.post("/add-all-active-to-cart")
+async def add_all_active_subscriptions_to_cart(request: Request):
+    """Add all active subscriptions to Digitec cart"""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Get all active subscriptions
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.url FROM subscriptions s
+            JOIN products p ON s.product_id = p.id
+            WHERE s.is_active = 1
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        if not rows:
+            return JSONResponse({"success": False, "message": "Keine aktiven Abos gefunden"})
+        
+        product_urls = [row[0] for row in rows]
+        
+        # Get Digitec credentials
+        digitec_email = os.getenv("DIGITEC_EMAIL")
+        digitec_password = os.getenv("DIGITEC_PASSWORD")
+        
+        # Add all to cart
+        result = add_multiple_products_to_cart(product_urls, digitec_email, digitec_password)
+        
+        return JSONResponse(result)
+        
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=500)
 
 @app.post("/activate/{product_id}")
 async def activate_product(request: Request, product_id: int):

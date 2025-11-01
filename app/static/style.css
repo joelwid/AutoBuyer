@@ -504,6 +504,44 @@ h1 {
     fill: red;
 }
 
+.btn-add-cart {
+    background: #1976D2;
+    border: 2px solid #1976D2;
+}
+
+.btn-add-cart:hover {
+    background: #155a99;
+    border-color: #155a99;
+}
+
+.btn-add-cart .icon-svg {
+    stroke: white;
+    fill: none;
+}
+
+.btn-add-all-cart {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: #1976D2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.btn-add-all-cart:hover {
+    background: #155a99;
+}
+
+.btn-add-all-cart svg {
+    stroke: white;
+    fill: none;
+}
+
 .icon-btn .btn-text {
     display: none;
 }
