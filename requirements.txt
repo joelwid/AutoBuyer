@@ -9,10 +9,6 @@ python-dotenv
 python-dateutil
 pytest
 bs4
-<<<<<<< HEAD
 requests
 selenium==4.25.0
 webdriver-manager
-=======
-requests
->>>>>>> 30f4c3f7233a7482365158f20ebb1065baff4f7b
